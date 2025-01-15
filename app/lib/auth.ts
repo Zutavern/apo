@@ -125,4 +125,10 @@ export async function getAllUsers() {
   } catch (error) {
     return { error: 'Ein Fehler ist aufgetreten' }
   }
+}
+
+export const users: any[] = [];
+
+export function saveUsers() {
+  // Implementierung hier
 } 
