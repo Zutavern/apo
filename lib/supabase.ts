@@ -30,14 +30,8 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: true
     },
-    db: {
-      schema: 'public'
-    },
     global: {
       headers: { 'x-application-name': 'apo' }
-    },
-    storage: {
-      storageBackend: 'storage-api'
     }
   }
 )
@@ -81,6 +75,10 @@ testConnection()
 
 // Hilfsfunktion für Storage-URLs
 export const getStorageUrl = (bucket: string, path: string): string => {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL ist nicht definiert')
+  }
+  
   const storageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`
   console.log('Generated Storage URL:', storageUrl)
   return storageUrl
