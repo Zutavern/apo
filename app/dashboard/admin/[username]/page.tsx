@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { UserCircle, Lock, Edit, Trash2, ArrowLeft, Upload, Loader2 } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
 import { Message } from '../components/Message'
-import { supabase, getStorageUrl } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 type PageProps = {
   params: Promise<{ username: string }>
@@ -18,6 +18,7 @@ type User = {
   role: string | null
   created_at: string | null
   avatar_url: string | null
+  avatar_path: string | null
   firstname: string | null
   lastname: string | null
 }
@@ -41,7 +42,7 @@ export default function UserProfilePage({ params }: PageProps) {
     const loadUser = async () => {
       const { data, error } = await supabase
         .from('users')
-        .select('username, lastlogin, email, role, created_at, avatar_url, firstname, lastname')
+        .select('username, lastlogin, email, role, created_at, avatar_url, avatar_path, firstname, lastname')
         .eq('username', resolvedParams.username)
         .single()
 
@@ -77,6 +78,9 @@ export default function UserProfilePage({ params }: PageProps) {
           
           ctx.drawImage(img, 0, 0, width, height)
           
+          // Behalte das originale Format bei (PNG oder JPEG)
+          const outputFormat = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+          
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -85,7 +89,7 @@ export default function UserProfilePage({ params }: PageProps) {
                 reject(new Error('Blob konnte nicht erstellt werden'))
               }
             },
-            'image/jpeg',
+            outputFormat,
             0.8
           )
         }
@@ -105,8 +109,8 @@ export default function UserProfilePage({ params }: PageProps) {
       }
 
       // Prüfe Dateityp
-      if (!file.type.startsWith('image/')) {
-        setMessage('Nur Bilddateien sind erlaubt.')
+      if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+        setMessage('Nur JPEG und PNG Dateien sind erlaubt.')
         return
       }
 
@@ -114,21 +118,23 @@ export default function UserProfilePage({ params }: PageProps) {
         setIsUploading(true)
         // Komprimiere das Bild
         const compressedBlob = await compressImage(file)
+        const fileExt = file.type === 'image/png' ? 'png' : 'jpg'
         const compressedFile = new File([compressedBlob], file.name, {
-          type: 'image/jpeg',
+          type: file.type
         })
 
         // Upload das Bild
-        const fileExt = 'jpg'
         const filePath = `${resolvedParams.username}-${Date.now()}.${fileExt}`
 
         console.log('Starte Upload:', {
           bucket: 'avatars',
           path: filePath,
-          fileSize: compressedFile.size
+          fileSize: compressedFile.size,
+          fileType: file.type
         })
 
-        const { error: uploadError } = await supabase.storage
+        // Upload mit verbesserter Fehlerbehandlung
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, compressedFile, {
             cacheControl: '3600',
@@ -137,11 +143,15 @@ export default function UserProfilePage({ params }: PageProps) {
 
         if (uploadError) {
           console.error('Upload Error:', uploadError)
-          throw uploadError
+          throw new Error(`Fehler beim Upload: ${uploadError.message}`)
         }
 
         // Generiere die öffentliche URL
-        const publicUrl = getStorageUrl('avatars', filePath)
+        const { data } = await supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath)
+
+        const publicUrl = data.publicUrl
 
         console.log('Upload erfolgreich:', {
           path: filePath,
@@ -166,7 +176,7 @@ export default function UserProfilePage({ params }: PageProps) {
         setMessage('Profilbild erfolgreich aktualisiert')
       } catch (error) {
         console.error('Fehler beim Bildupload:', error)
-        setMessage('Fehler beim Hochladen des Bildes. Bitte versuchen Sie es später erneut.')
+        setMessage(error instanceof Error ? error.message : 'Fehler beim Hochladen des Bildes. Bitte versuchen Sie es später erneut.')
       } finally {
         setIsUploading(false)
       }
@@ -286,7 +296,12 @@ export default function UserProfilePage({ params }: PageProps) {
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <h1 className="text-2xl font-bold">{resolvedParams.username}</h1>
+                <h1 className="text-2xl font-bold">
+                  {user?.firstname && user?.lastname 
+                    ? `${user.firstname} ${user.lastname}`
+                    : resolvedParams.username
+                  }
+                </h1>
                 <div className="text-sm text-gray-400 text-right">
                   <div>
                     Letzter Login: {user?.lastlogin ? new Date(user.lastlogin).toLocaleString('de-DE', {
