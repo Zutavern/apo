@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { ArrowLeft, Upload, Loader2 } from 'lucide-react'
+import { supabase, getStorageUrl } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
+import Image from 'next/image'
 
 const roles = ['Standardnutzer', 'Admin', 'Superadmin']
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export default function NewUserPage() {
   const router = useRouter()
@@ -18,6 +20,133 @@ export default function NewUserPage() {
   })
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = (event) => {
+        const img = document.createElement('img')
+        img.src = event.target?.result as string
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('Canvas context nicht verfügbar'))
+            return
+          }
+
+          // Skaliere das Bild um 20%
+          const width = img.width * 0.8
+          const height = img.height * 0.8
+          
+          canvas.width = width
+          canvas.height = height
+          
+          ctx.drawImage(img, 0, 0, width, height)
+          
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob)
+              } else {
+                reject(new Error('Blob konnte nicht erstellt werden'))
+              }
+            },
+            'image/jpeg',
+            0.8
+          )
+        }
+      }
+      reader.onerror = () => reject(new Error('Fehler beim Lesen der Datei'))
+    })
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      
+      // Prüfe Dateigröße
+      if (file.size > MAX_FILE_SIZE) {
+        setMessage('Die Datei ist zu groß. Maximale Größe ist 5MB.')
+        return
+      }
+
+      // Prüfe Dateityp
+      if (!file.type.startsWith('image/')) {
+        setMessage('Nur Bilddateien sind erlaubt.')
+        return
+      }
+
+      try {
+        setIsUploading(true)
+        // Komprimiere das Bild
+        const compressedBlob = await compressImage(file)
+        const compressedFile = new File([compressedBlob], file.name, {
+          type: 'image/jpeg',
+        })
+
+        setAvatarFile(compressedFile)
+        setAvatarPreview(URL.createObjectURL(compressedBlob))
+        setMessage('')
+      } catch (error) {
+        setMessage('Fehler bei der Bildverarbeitung')
+        console.error('Bildverarbeitungsfehler:', error)
+      } finally {
+        setIsUploading(false)
+      }
+    }
+  }
+
+  const uploadAvatar = async (username: string): Promise<{ avatar_url: string; avatar_path: string } | null> => {
+    if (!avatarFile) return null
+
+    try {
+      setIsUploading(true)
+      const fileExt = 'jpg' // Wir speichern immer als JPG nach der Komprimierung
+      const filePath = `${username}-${Date.now()}.${fileExt}`
+
+      console.log('Starte Upload:', {
+        bucket: 'avatars',
+        path: filePath,
+        fileSize: avatarFile.size
+      })
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, avatarFile, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        console.error('Upload Error:', uploadError)
+        throw uploadError
+      }
+
+      // Generiere die öffentliche URL
+      const publicUrl = getStorageUrl('avatars', filePath)
+
+      console.log('Upload erfolgreich:', {
+        path: filePath,
+        url: publicUrl
+      })
+
+      return {
+        avatar_url: publicUrl,
+        avatar_path: filePath
+      }
+    } catch (error) {
+      console.error('Fehler beim Avatar-Upload:', error)
+      setMessage('Fehler beim Hochladen des Avatars. Bitte versuchen Sie es später erneut.')
+      return null
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,6 +171,9 @@ export default function NewUserPage() {
       const salt = await bcrypt.genSalt(10)
       const hashedPassword = await bcrypt.hash(formData.password, salt)
 
+      // Upload Avatar wenn vorhanden
+      const avatarData = await uploadAvatar(formData.username)
+
       // Erstelle neuen Benutzer
       const newUser = {
         username: formData.username,
@@ -49,7 +181,9 @@ export default function NewUserPage() {
         email: formData.email,
         created_at: new Date().toISOString(),
         lastlogin: null,
-        role: formData.role
+        role: formData.role,
+        avatar_url: avatarData?.avatar_url || null,
+        avatar_path: avatarData?.avatar_path || null
       }
 
       // Debug Logging
@@ -126,6 +260,52 @@ export default function NewUserPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Profilbild
+            </label>
+            <div className="flex items-center gap-4">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-900/50 border border-gray-700">
+                {isUploading ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50">
+                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                  </div>
+                ) : avatarPreview ? (
+                  <img
+                    src={avatarPreview}
+                    alt="Profilbild Vorschau"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full text-gray-500">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  id="avatar-upload"
+                  disabled={isUploading}
+                />
+                <label
+                  htmlFor="avatar-upload"
+                  className={`cursor-pointer bg-gray-900/50 text-gray-300 px-4 py-2 rounded-lg border border-gray-700 hover:bg-gray-900/70 ${
+                    isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isUploading ? 'Wird verarbeitet...' : 'Bild auswählen'}
+                </label>
+                <span className="text-xs text-gray-400">
+                  Max. 5MB, wird automatisch komprimiert
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
               Benutzername
             </label>
@@ -191,7 +371,7 @@ export default function NewUserPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isUploading}
             className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Wird erstellt...' : 'Benutzer erstellen'}

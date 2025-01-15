@@ -35,18 +35,39 @@ export const supabase = createClient(
     },
     global: {
       headers: { 'x-application-name': 'apo' }
+    },
+    storage: {
+      storageBackend: 'storage-api'
     }
   }
 )
 
-// Teste die Verbindung
+// Teste die Verbindung und Storage
 const testConnection = async () => {
   try {
+    // Test DB Verbindung
     const { data, error } = await supabase.from('users').select('count').single()
     if (error) {
       console.error('Supabase Verbindungsfehler:', error.message)
       return false
     }
+    
+    // Test Storage Verbindung
+    try {
+      const { data: storageData, error: storageError } = await supabase.storage
+        .getBucket('avatars')
+      
+      if (storageError) {
+        console.error('Storage Fehler:', storageError.message)
+        return false
+      }
+      
+      console.log('Storage Verbindung erfolgreich')
+    } catch (storageErr) {
+      console.error('Fehler beim Zugriff auf Storage:', storageErr)
+      return false
+    }
+
     console.log('Supabase Verbindung erfolgreich')
     return true
   } catch (err) {
@@ -57,6 +78,13 @@ const testConnection = async () => {
 
 // Führe den Verbindungstest aus
 testConnection()
+
+// Hilfsfunktion für Storage-URLs
+export const getStorageUrl = (bucket: string, path: string): string => {
+  const storageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`
+  console.log('Generated Storage URL:', storageUrl)
+  return storageUrl
+}
 
 export type User = {
   id: string

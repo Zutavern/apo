@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { UserCircle, Lock, Edit, Trash2, ArrowLeft, Upload, Loader2 } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
 import { Message } from '../components/Message'
-import { supabase } from '@/lib/supabase'
+import { supabase, getStorageUrl } from '@/lib/supabase'
 
 type PageProps = {
   params: Promise<{ username: string }>
@@ -122,15 +122,31 @@ export default function UserProfilePage({ params }: PageProps) {
         const fileExt = 'jpg'
         const filePath = `${resolvedParams.username}-${Date.now()}.${fileExt}`
 
+        console.log('Starte Upload:', {
+          bucket: 'avatars',
+          path: filePath,
+          fileSize: compressedFile.size
+        })
+
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, compressedFile)
+          .upload(filePath, compressedFile, {
+            cacheControl: '3600',
+            upsert: true
+          })
 
-        if (uploadError) throw uploadError
+        if (uploadError) {
+          console.error('Upload Error:', uploadError)
+          throw uploadError
+        }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath)
+        // Generiere die öffentliche URL
+        const publicUrl = getStorageUrl('avatars', filePath)
+
+        console.log('Upload erfolgreich:', {
+          path: filePath,
+          url: publicUrl
+        })
 
         // Update User
         const { error: updateError } = await supabase
@@ -141,13 +157,16 @@ export default function UserProfilePage({ params }: PageProps) {
           })
           .eq('username', resolvedParams.username)
 
-        if (updateError) throw updateError
+        if (updateError) {
+          console.error('Update Error:', updateError)
+          throw updateError
+        }
 
         setUser(prev => prev ? { ...prev, avatar_url: publicUrl } : null)
         setMessage('Profilbild erfolgreich aktualisiert')
       } catch (error) {
         console.error('Fehler beim Bildupload:', error)
-        setMessage('Fehler beim Hochladen des Bildes')
+        setMessage('Fehler beim Hochladen des Bildes. Bitte versuchen Sie es später erneut.')
       } finally {
         setIsUploading(false)
       }
