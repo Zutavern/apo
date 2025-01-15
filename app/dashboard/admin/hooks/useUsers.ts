@@ -1,30 +1,50 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import bcrypt from 'bcryptjs'
+import type { User } from '../types'
+
+const ITEMS_PER_PAGE = 8
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [message, setMessage] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
 
   const loadUsers = async () => {
     try {
+      setIsLoading(true)
+      // Lade die Gesamtanzahl der Benutzer für die Paginierung
+      const { count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+
+      // Berechne die Gesamtanzahl der Seiten
+      const total = count || 0
+      setTotalPages(Math.ceil(total / ITEMS_PER_PAGE))
+
+      // Lade die Benutzer für die aktuelle Seite
       const { data: users, error } = await supabase
         .from('users')
         .select('username, created_at, lastlogin, role')
+        .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
+        .order('username', { ascending: true })
       
       if (error) throw error
       setUsers(users || [])
       setFilteredUsers(users || [])
     } catch (error) {
       console.error('Fehler beim Laden der Benutzer:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   useEffect(() => {
     loadUsers()
-  }, [])
+  }, [currentPage]) // Lade neu wenn sich die Seite ändert
 
   useEffect(() => {
     const filtered = users.filter(user =>
@@ -49,60 +69,46 @@ export function useUsers() {
     }
   }
 
-  const handleChangePassword = async (username: string, newPassword: string) => {
-    try {
-      const hashedPassword = await bcrypt.hash(newPassword, 10)
-      
-      const { error } = await supabase
-        .from('users')
-        .update({ password_hash: hashedPassword })
-        .eq('username', username)
-
-      if (error) throw error
-
-      setMessage('Passwort erfolgreich geändert')
-    } catch (error) {
-      console.error('Password update error:', error)
-      setMessage('Fehler beim Ändern des Passworts')
-    }
-  }
-
   const handleChangeUsername = async (oldUsername: string, newUsername: string) => {
     try {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', newUsername)
-        .single()
-
-      if (existingUser) {
-        setMessage('Dieser Benutzername ist bereits vergeben')
-        return
-      }
-
       const { error } = await supabase
         .from('users')
         .update({ username: newUsername })
         .eq('username', oldUsername)
 
       if (error) throw error
-
-      setMessage('Benutzername erfolgreich geändert')
       await loadUsers()
+      setMessage('Benutzername erfolgreich geändert')
     } catch (error) {
-      console.error('Username update error:', error)
       setMessage('Fehler beim Ändern des Benutzernamens')
     }
   }
 
+  const handleChangePassword = async (username: string, newPassword: string) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ password_hash: newPassword })
+        .eq('username', username)
+
+      if (error) throw error
+      setMessage('Passwort erfolgreich geändert')
+    } catch (error) {
+      setMessage('Fehler beim Ändern des Passworts')
+    }
+  }
+
   return {
-    users,
     filteredUsers,
     searchQuery,
     setSearchQuery,
+    message,
     handleDeleteUser,
-    handleChangePassword,
     handleChangeUsername,
-    message
+    handleChangePassword,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    isLoading
   }
 } 
