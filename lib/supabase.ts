@@ -46,14 +46,31 @@ const testConnection = async () => {
       return false
     }
     
-    // Test Storage Verbindung
+    // Test Storage Verbindung und erstelle Bucket falls notwendig
     try {
-      const { data: storageData, error: storageError } = await supabase.storage
+      // Prüfe ob Bucket existiert
+      const { data: bucketData, error: getBucketError } = await supabase.storage
         .getBucket('avatars')
       
-      if (storageError) {
-        console.error('Storage Fehler:', storageError.message)
-        return false
+      if (getBucketError) {
+        console.log('Bucket existiert noch nicht, wird erstellt...')
+        
+        // Erstelle Bucket
+        const { data: newBucket, error: createError } = await supabase.storage
+          .createBucket('avatars', {
+            public: true,
+            allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif'],
+            fileSizeLimit: 5242880 // 5MB
+          })
+        
+        if (createError) {
+          console.error('Fehler beim Erstellen des Buckets:', createError.message)
+          return false
+        }
+        
+        console.log('Bucket erfolgreich erstellt:', newBucket)
+      } else {
+        console.log('Bucket existiert bereits:', bucketData)
       }
       
       console.log('Storage Verbindung erfolgreich')
