@@ -21,6 +21,12 @@ export function UserCard({ user }: UserCardProps) {
     })
   }
 
+  // Bestimme den Anzeigenamen
+  const hasFullName = user.first_name && user.last_name
+  const displayName = hasFullName
+    ? `${user.first_name} ${user.last_name}`
+    : user.username
+
   return (
     <Link
       href={`/dashboard/admin/${user.username}`}
@@ -29,7 +35,7 @@ export function UserCard({ user }: UserCardProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <UserCircle className="h-5 w-5 text-gray-400" />
-          <span className="font-medium">{user.username}</span>
+          <span className="font-medium text-lg">{displayName}</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-blue-500">
