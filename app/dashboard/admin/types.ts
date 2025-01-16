@@ -3,4 +3,7 @@ export type User = {
   created_at: string
   lastlogin: string | null
   role: string
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
 } 
