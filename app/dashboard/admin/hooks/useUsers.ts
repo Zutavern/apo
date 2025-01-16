@@ -2,16 +2,32 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { User } from '../types'
 
+const ITEMS_PER_PAGE = 8
+
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [message, setMessage] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
 
   const loadUsers = async () => {
     try {
+      setIsLoading(true)
       console.log('Starte Laden der Benutzer...')
       
+      // Lade die Gesamtanzahl der Benutzer für die Paginierung
+      const { count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+
+      // Berechne die Gesamtanzahl der Seiten
+      const total = count || 0
+      setTotalPages(Math.ceil(total / ITEMS_PER_PAGE))
+
+      // Lade die Benutzer für die aktuelle Seite
       const { data, error } = await supabase
         .from('users')
         .select(`
@@ -20,8 +36,11 @@ export function useUsers() {
           lastlogin,
           role,
           firstname,
-          lastname
+          lastname,
+          avatar_url
         `)
+        .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
+        .order('username', { ascending: true })
       
       if (error) {
         console.error('Supabase Fehler:', error.message, error.details, error.hint)
@@ -43,19 +62,15 @@ export function useUsers() {
         created_at: user.created_at || new Date().toISOString(),
         lastlogin: user.lastlogin || null,
         role: user.role || 'user',
-        first_name: user.firstname || null,  // Mapping von firstname zu first_name
-        last_name: user.lastname || null     // Mapping von lastname zu last_name
+        first_name: user.firstname || null,
+        last_name: user.lastname || null,
+        avatar_url: user.avatar_url || null
       }))
 
       console.log('Verarbeitete Benutzerdaten:', validUsers)
       
-      // Sortiere die Benutzer nach Benutzername
-      const sortedUsers = validUsers.sort((a, b) => 
-        a.username.localeCompare(b.username)
-      )
-      
-      setUsers(sortedUsers)
-      setFilteredUsers(sortedUsers)
+      setUsers(validUsers)
+      setFilteredUsers(validUsers)
     } catch (error: any) {
       console.error('Detaillierter Fehler:', {
         message: error.message,
@@ -65,12 +80,14 @@ export function useUsers() {
         hint: error.hint
       })
       setMessage('Fehler beim Laden der Benutzer')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   useEffect(() => {
     loadUsers()
-  }, [])
+  }, [currentPage]) // Lade neu wenn sich die Seite ändert
 
   useEffect(() => {
     const filtered = users.filter(user => {
@@ -138,6 +155,10 @@ export function useUsers() {
     message,
     handleDeleteUser,
     handleChangeUsername,
-    handleChangePassword
+    handleChangePassword,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    isLoading
   }
 } 
