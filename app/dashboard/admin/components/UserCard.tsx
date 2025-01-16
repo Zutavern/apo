@@ -2,6 +2,7 @@
 
 import { UserCircle } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { User } from '../types'
 
 type UserCardProps = {
@@ -34,7 +35,20 @@ export function UserCard({ user }: UserCardProps) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <UserCircle className="h-5 w-5 text-gray-400" />
+          <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-700">
+            {user.avatar_url ? (
+              <Image
+                src={user.avatar_url}
+                alt={`Avatar von ${displayName}`}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <UserCircle className="h-6 w-6 text-gray-400" />
+              </div>
+            )}
+          </div>
           <span className="font-medium text-lg">{displayName}</span>
         </div>
         <div className="flex items-center gap-4">
