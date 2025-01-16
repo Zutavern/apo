@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   ChevronRight,
-  LayoutDashboard
+  LayoutDashboard,
+  Cloud
 } from 'lucide-react'
 
 const menuItems = [
@@ -38,6 +39,12 @@ const menuItems = [
     icon: PhoneCall,
     href: '/dashboard/emergency',
     description: 'Notdienste verwalten'
+  },
+  {
+    title: 'Wetter',
+    icon: Cloud,
+    href: '/dashboard/weather',
+    description: 'Wetterinformationen'
   }
 ]
 
