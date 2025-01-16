@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Apotheken-Verwaltungssystem
 
-## Getting Started
+Ein modernes Verwaltungssystem für Apotheken, entwickelt mit Next.js 14, TypeScript und Supabase.
 
-First, run the development server:
+## Features
 
+- 🔐 Sicheres Authentifizierungssystem
+- 👥 Benutzerverwaltung mit Rollensystem
+- 🖼️ Profilbilder-Upload und -Verwaltung
+- 📱 Responsive Design
+- 🌙 Dark Mode
+- 📊 Paginierung für große Datensätze
+
+## Technologie-Stack
+
+- **Frontend:**
+  - Next.js 14 (App Router)
+  - TypeScript
+  - Tailwind CSS
+  - Shadcn/UI Komponenten
+  - Lucide Icons
+
+- **Backend:**
+  - Supabase (PostgreSQL)
+  - Supabase Auth
+  - Supabase Storage
+
+## Lokale Entwicklung
+
+1. Repository klonen:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Zutavern/apo.git
+cd apo
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Abhängigkeiten installieren:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Umgebungsvariablen konfigurieren:
+```bash
+cp .env.example .env.local
+```
+Dann die Supabase-Zugangsdaten in `.env.local` eintragen.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Entwicklungsserver starten:
+```bash
+npm run dev
+```
 
-## Learn More
+Die Anwendung ist dann unter `http://localhost:3000` erreichbar.
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Die Anwendung ist für das Deployment auf Vercel optimiert:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Vercel CLI installieren:
+```bash
+npm i -g vercel
+```
 
-## Deploy on Vercel
+2. Deployment starten:
+```bash
+vercel
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Projektstruktur
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+├── api/            # API-Routen
+├── auth/           # Authentifizierungsseiten
+├── dashboard/      # Dashboard und Admin-Bereich
+│   ├── admin/      # Admin-Verwaltung
+│   └── profile/    # Benutzerprofil
+├── components/     # Wiederverwendbare Komponenten
+├── lib/           # Hilfsfunktionen und Utilities
+└── types/         # TypeScript Typdefinitionen
+```
+
+## Beiträge
+
+Beiträge sind willkommen! Bitte beachten Sie folgende Schritte:
+
+1. Fork des Repositories erstellen
+2. Feature Branch erstellen (`git checkout -b feature/AmazingFeature`)
+3. Änderungen committen (`git commit -m 'Add some AmazingFeature'`)
+4. Branch pushen (`git push origin feature/AmazingFeature`)
+5. Pull Request erstellen
+
+## Lizenz
+
+Dieses Projekt ist unter der MIT-Lizenz lizenziert.
