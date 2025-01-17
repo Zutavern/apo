@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { loginUser } from '@/app/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   try {
@@ -11,8 +11,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error }, { status: 401 })
     }
 
-    // Last-Login aktualisieren
-    const { error: updateError } = await supabase
+    // Last-Login mit Admin-Client aktualisieren
+    const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({ lastlogin: new Date().toISOString() })
       .eq('username', username)
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
 
     return response
   } catch (error) {
+    console.error('Login error:', error)
     return NextResponse.json(
       { message: 'Interner Server-Fehler' },
       { status: 500 }

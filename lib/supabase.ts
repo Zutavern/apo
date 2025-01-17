@@ -11,6 +11,12 @@ const checkEnvironmentVariables = () => {
     missingVars.push('NEXT_PUBLIC_SUPABASE_ANON_KEY')
   }
   
+  // Service Role Key nur auf Server-Seite prüfen
+  if (typeof window === 'undefined' && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('SUPABASE_SERVICE_ROLE_KEY fehlt oder ist nicht definiert')
+    missingVars.push('SUPABASE_SERVICE_ROLE_KEY')
+  }
+  
   if (missingVars.length > 0) {
     console.error('Fehlende Umgebungsvariablen:', missingVars)
     throw new Error(`Fehlende Umgebungsvariablen: ${missingVars.join(', ')}`)
@@ -20,16 +26,29 @@ const checkEnvironmentVariables = () => {
 // Prüfe Umgebungsvariablen
 checkEnvironmentVariables()
 
-// Erstelle Supabase Client mit serverseitiger Konfiguration
+// Erstelle Supabase Client mit öffentlicher Konfiguration
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   {
     auth: {
-      persistSession: false // Deaktiviere Client-seitige Session-Persistenz
+      persistSession: false
     }
   }
 )
+
+// Erstelle Admin-Client nur auf Server-Seite
+export const supabaseAdmin = typeof window === 'undefined' 
+  ? createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          persistSession: false
+        }
+      }
+    )
+  : null
 
 // Hilfsfunktion für Storage-URLs
 export const getStorageUrl = (bucket: string, path: string): string => {

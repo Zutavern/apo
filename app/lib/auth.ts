@@ -1,38 +1,38 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 
 export async function loginUser(username: string, password: string) {
   try {
-    console.log('Attempting login for user:', username) // Debug-Log
+    console.log('Attempting login for user:', username)
 
-    const { data: user, error } = await supabase
+    const { data: user, error } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('username', username)
       .single()
 
     if (error) {
-      console.error('Supabase error:', error) // Debug-Log
+      console.error('Supabase error:', error)
       return { error: 'Benutzer nicht gefunden' }
     }
 
     if (!user) {
-      console.log('No user found') // Debug-Log
+      console.log('No user found')
       return { error: 'Benutzer nicht gefunden' }
     }
 
-    console.log('User found, checking password') // Debug-Log
+    console.log('User found, checking password')
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash)
     if (!passwordMatch) {
-      console.log('Password does not match') // Debug-Log
+      console.log('Password does not match')
       return { error: 'Ungültiges Passwort' }
     }
 
-    console.log('Login successful') // Debug-Log
+    console.log('Login successful')
     return { user }
   } catch (error) {
-    console.error('Login error:', error) // Debug-Log
+    console.error('Login error:', error)
     return { error: 'Ein Fehler ist aufgetreten' }
   }
 }
@@ -40,7 +40,7 @@ export async function loginUser(username: string, password: string) {
 export async function createUser(username: string, password: string) {
   try {
     // Prüfen ob Benutzer bereits existiert
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('username')
       .eq('username', username)
@@ -52,7 +52,7 @@ export async function createUser(username: string, password: string) {
 
     const hashedPassword = await bcrypt.hash(password, 10)
     
-    const { data: user, error } = await supabase
+    const { data: user, error } = await supabaseAdmin
       .from('users')
       .insert([
         { 
@@ -79,7 +79,7 @@ export async function updateUserPassword(username: string, newPassword: string) 
   try {
     const hashedPassword = await bcrypt.hash(newPassword, 10)
     
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('users')
       .update({ password_hash: hashedPassword })
       .eq('username', username)
@@ -96,7 +96,7 @@ export async function updateUserPassword(username: string, newPassword: string) 
 
 export async function deleteUser(username: string) {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('users')
       .delete()
       .eq('username', username)
@@ -113,7 +113,7 @@ export async function deleteUser(username: string) {
 
 export async function getAllUsers() {
   try {
-    const { data: users, error } = await supabase
+    const { data: users, error } = await supabaseAdmin
       .from('users')
       .select('username, created_at')
 
