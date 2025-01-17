@@ -3,24 +3,22 @@ import { cookies } from 'next/headers'
 
 export async function GET() {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const authCookie = cookieStore.get('auth')
 
     if (!authCookie) {
       return NextResponse.json(
-        { message: 'Nicht authentifiziert' },
+        { authenticated: false },
         { status: 401 }
       )
     }
 
-    return NextResponse.json({ 
-      status: 'authenticated',
-      message: 'Erfolgreich authentifiziert'
-    })
+    return NextResponse.json({ authenticated: true })
   } catch (error) {
+    console.error('Fehler bei der Authentifizierungsprüfung:', error)
     return NextResponse.json(
-      { message: 'Nicht authentifiziert' },
-      { status: 401 }
+      { error: 'Interner Server-Fehler' },
+      { status: 500 }
     )
   }
 } 

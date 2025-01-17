@@ -12,7 +12,8 @@ import {
   X,
   ChevronRight,
   LayoutDashboard,
-  Cloud
+  Cloud,
+  ShoppingCart
 } from 'lucide-react'
 
 const menuItems = [
@@ -45,6 +46,12 @@ const menuItems = [
     icon: Cloud,
     href: '/dashboard/weather',
     description: 'Wetterinformationen'
+  },
+  {
+    title: 'Shop',
+    icon: ShoppingCart,
+    href: '/dashboard/shop',
+    description: 'Shop verwalten'
   }
 ]
 
