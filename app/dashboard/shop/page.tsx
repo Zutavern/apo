@@ -44,6 +44,8 @@ function SearchBar({ onSearch }: { onSearch: (name: string, sku: string) => void
 }
 
 function ProductCard({ product }: { product: MauveProduct }) {
+  const [isActive, setIsActive] = useState(false)
+  
   const placeholderImage = `data:image/svg+xml;base64,${btoa(`
     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -69,11 +71,22 @@ function ProductCard({ product }: { product: MauveProduct }) {
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-2">
             <h2 className="text-lg font-medium text-black truncate">{product.name}</h2>
-            <span className="text-lg font-bold text-primary whitespace-nowrap">{product.price.toFixed(2)} €</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+              />
+              <div className="w-8 h-4 bg-gray-300 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/25 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary"></div>
+            </label>
           </div>
           <p className="text-sm text-gray-600 line-clamp-2 mb-2">{product.description}</p>
           <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-500">SKU: {product.sku}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">SKU: {product.sku}</span>
+              <span className="text-primary font-medium">{product.price.toFixed(2)} €</span>
+            </div>
             <span className={`font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {product.stock > 0 ? `${product.stock} verfügbar` : 'Nicht verfügbar'}
             </span>
@@ -337,7 +350,7 @@ function ProductDisplay() {
 export default function ShopPage() {
   return (
     <div className="container mx-auto">
-      <h1 className="text-xl font-semibold mb-4 px-4">Produkte</h1>
+      <h1 className="text-xl font-semibold mb-4 px-4">Meine Produkte in meinem Webshop</h1>
       <ProductDisplay />
     </div>
   )

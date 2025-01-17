@@ -13,7 +13,10 @@ import {
   ChevronRight,
   LayoutDashboard,
   Cloud,
-  ShoppingCart
+  ShoppingCart,
+  Share2,
+  Monitor,
+  Tv
 } from 'lucide-react'
 
 const menuItems = [
@@ -28,6 +31,18 @@ const menuItems = [
     icon: Users,
     href: '/dashboard/admin',
     description: 'Benutzerverwaltung'
+  },
+  {
+    title: 'ELAC',
+    icon: Monitor,
+    href: '/dashboard/elac',
+    description: 'WKZ Digital'
+  },
+  {
+    title: 'Digital Signage',
+    icon: Tv,
+    href: '/dashboard/digital-signage',
+    description: 'Screens verwalten'
   },
   {
     title: 'News',
@@ -52,6 +67,12 @@ const menuItems = [
     icon: ShoppingCart,
     href: '/dashboard/shop',
     description: 'Shop verwalten'
+  },
+  {
+    title: 'Social Media',
+    icon: Share2,
+    href: '/dashboard/social',
+    description: 'Social Media verwalten'
   }
 ]
 
