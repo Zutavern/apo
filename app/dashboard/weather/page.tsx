@@ -1,28 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Cloud, 
-  Droplets, 
-  Wind, 
-  Thermometer, 
-  Sun, 
-  CloudRain, 
-  Moon, 
-  Heart, 
-  Pill, 
-  Activity,
-  AlertTriangle,
-  Flower,
-  Clock,
-  Users,
-  Leaf,
-  Flower2,
-  LayoutList,
-  LayoutGrid,
-  Layout
-} from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Cloud, LayoutList, LayoutGrid, Layout } from 'lucide-react'
+import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { supabase } from '@/lib/supabase'
 
 type WeatherData = {
@@ -52,6 +32,14 @@ type WeatherData = {
 }
 
 type PollenData = {
+  alder: number
+  birch: number
+  grass: number
+  mugwort: number
+  ragweed: number
+}
+
+type PollenApiResponse = {
   hourly: {
     time: string[]
     alder_pollen: number[]
@@ -271,19 +259,6 @@ function getHealthRecommendations(weatherData: WeatherData, pollenData: PollenDa
   return recommendations
 }
 
-function getCurrentPollenData(pollenData: PollenData | null) {
-  if (!pollenData) return null;
-  
-  const currentHour = new Date().getHours();
-  return {
-    alder: pollenData.hourly.alder_pollen[currentHour] || 0,
-    birch: pollenData.hourly.birch_pollen[currentHour] || 0,
-    grass: pollenData.hourly.grass_pollen[currentHour] || 0,
-    mugwort: pollenData.hourly.mugwort_pollen[currentHour] || 0,
-    ragweed: pollenData.hourly.ragweed_pollen[currentHour] || 0
-  };
-}
-
 function calculateMedicalWeatherData(weatherData: WeatherData, pollenData: PollenData | null): MedicalWeatherData {
   // Migräne-Index basierend auf Luftdruckänderungen
   const migraineIndex = Math.abs(weatherData.current.pressure_msl - 1013.25) > 10 ? 'Hoch' :
@@ -294,9 +269,8 @@ function calculateMedicalWeatherData(weatherData: WeatherData, pollenData: Polle
                   weatherData.current.temperature_2m < 15 && weatherData.current.relative_humidity_2m > 60 ? 'Mittel' : 'Niedrig'
 
   // Allergie-Warnung basierend auf Pollenflug
-  const currentPollen = getCurrentPollenData(pollenData)
-  const allergyAlert = currentPollen && Object.values(currentPollen).some(value => value > 4) ? 'Hoch' :
-                      currentPollen && Object.values(currentPollen).some(value => value > 2) ? 'Mittel' : 'Niedrig'
+  const allergyAlert = pollenData && Object.values(pollenData).some(value => value > 4) ? 'Hoch' :
+                      pollenData && Object.values(pollenData).some(value => value > 2) ? 'Mittel' : 'Niedrig'
 
   return {
     migraineIndex,
@@ -762,27 +736,11 @@ export default function WeatherPage() {
   const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<'api' | 'db'>('api')
+  const [dataSource, setDataSource] = useState<'api' | 'db'>('db')
   const [layout, setLayout] = useState<'single' | 'double' | 'triple'>('single')
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
-  // Formatiere das aktuelle Datum
-  const currentDate = new Date()
-  const formattedDate = new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(currentDate)
-
-  const handleLayoutToggle = () => {
-    setLayout(current => {
-      if (current === 'single') return 'double'
-      if (current === 'double') return 'triple'
-      return 'single'
-    })
-  }
-
-  const fetchData = async () => {
+  const handleUpdate = async () => {
     try {
       setLoading(true)
       setError(null)
@@ -803,7 +761,7 @@ export default function WeatherPage() {
             precipitation: weatherResponse.data.precipitation,
             wind_speed_10m: weatherResponse.data.wind_speed_10m,
             weather_code: weatherResponse.data.weather_code,
-            is_day: weatherResponse.data.is_day,
+            is_day: weatherResponse.data.is_day ? 1 : 0,
             uv_index: weatherResponse.data.uv_index,
             pressure_msl: weatherResponse.data.pressure_msl,
             surface_pressure: weatherResponse.data.surface_pressure
@@ -822,7 +780,6 @@ export default function WeatherPage() {
         })
         setDataSource('api')
         setLastUpdate(new Date())
-        console.log('Daten von API geladen')
       } else {
         throw new Error('Keine Wetterdaten verfügbar')
       }
@@ -841,13 +798,31 @@ export default function WeatherPage() {
         throw new Error('Fehler beim Abrufen der Daten')
       }
 
-      const [pollenData, airQualityData] = await Promise.all([
-        pollenResponse.json(),
+      const [pollenApiData, airQualityApiData] = await Promise.all([
+        pollenResponse.json() as Promise<PollenApiResponse>,
         airQualityResponse.json()
       ])
 
-      setPollenData(pollenData)
-      setAirQualityData(airQualityData)
+      const currentHour = new Date().getHours()
+      
+      setPollenData({
+        alder: pollenApiData.hourly.alder_pollen[currentHour] || 0,
+        birch: pollenApiData.hourly.birch_pollen[currentHour] || 0,
+        grass: pollenApiData.hourly.grass_pollen[currentHour] || 0,
+        mugwort: pollenApiData.hourly.mugwort_pollen[currentHour] || 0,
+        ragweed: pollenApiData.hourly.ragweed_pollen[currentHour] || 0
+      })
+
+      setAirQualityData({
+        current: {
+          pm10: airQualityApiData.current.pm10,
+          pm2_5: airQualityApiData.current.pm2_5,
+          nitrogen_dioxide: airQualityApiData.current.nitrogen_dioxide,
+          ozone: airQualityApiData.current.ozone,
+          european_aqi: airQualityApiData.current.european_aqi
+        }
+      })
+
     } catch (err) {
       console.error('Fetch Error:', err)
       setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
@@ -856,13 +831,85 @@ export default function WeatherPage() {
     }
   }
 
-  const handleUpdate = () => {
-    fetchData()
+  const loadDbData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Verwende API-Route statt direktem Supabase-Zugriff
+      const response = await fetch('/api/weather/current')
+      if (!response.ok) {
+        throw new Error('Fehler beim Laden der Wetterdaten')
+      }
+
+      const weatherDbData = await response.json()
+      
+      if (weatherDbData) {
+        console.log('Wetterdaten aus DB:', weatherDbData)
+        
+        setWeatherData({
+          current: {
+            temperature_2m: weatherDbData.temperature_2m,
+            relative_humidity_2m: weatherDbData.relative_humidity_2m,
+            apparent_temperature: weatherDbData.apparent_temperature,
+            precipitation: weatherDbData.precipitation,
+            wind_speed_10m: weatherDbData.wind_speed_10m,
+            weather_code: weatherDbData.weather_code,
+            is_day: weatherDbData.is_day ? 1 : 0,
+            uv_index: weatherDbData.uv_index,
+            pressure_msl: weatherDbData.pressure_msl,
+            surface_pressure: weatherDbData.surface_pressure
+          },
+          daily: {
+            time: [new Date().toISOString().split('T')[0]],
+            temperature_2m_max: [weatherDbData.temperature_2m + 2],
+            temperature_2m_min: [weatherDbData.temperature_2m - 2],
+            precipitation_sum: [weatherDbData.precipitation * 24],
+            weather_code: [weatherDbData.weather_code],
+            sunrise: [weatherDbData.sunrise],
+            sunset: [weatherDbData.sunset],
+            uv_index_max: [weatherDbData.uv_index],
+            pressure_msl_mean: [weatherDbData.pressure_msl]
+          }
+        })
+        setDataSource('db')
+        setLastUpdate(new Date(weatherDbData.last_updated))
+      } else {
+        console.log('Keine Wetterdaten in der DB gefunden')
+        setError('Keine Wetterdaten verfügbar')
+      }
+    } catch (err) {
+      console.error('Database Error:', err)
+      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Datenbank-Daten')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    fetchData()
+    loadDbData()
   }, [])
+
+  // Formatiere das aktuelle Datum
+  const currentDate = new Date()
+  const formattedDate = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(currentDate)
+
+  const handleLayoutToggle = () => {
+    setLayout(current => {
+      if (current === 'single') return 'double'
+      if (current === 'double') return 'triple'
+      return 'single'
+    })
+  }
+
+  const handleSourceToggle = () => {
+    // Hier später die eigentliche Logik implementieren
+    setDataSource(current => current === 'api' ? 'db' : 'api')
+  }
 
   // Berechne Biometeorologie-Daten
   const biometeoData = weatherData ? calculateBiometeoData(weatherData) : null
@@ -910,6 +957,17 @@ export default function WeatherPage() {
         return "Dreispaltiges Layout"
       case 'triple':
         return "Einspaltiges Layout"
+    }
+  }
+
+  const getLayoutClasses = () => {
+    switch (layout) {
+      case 'single':
+        return 'grid-cols-1'
+      case 'double':
+        return 'grid-cols-1 md:grid-cols-2'
+      case 'triple':
+        return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
     }
   }
 
@@ -1041,7 +1099,7 @@ export default function WeatherPage() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">
@@ -1075,892 +1133,13 @@ export default function WeatherPage() {
           </button>
         </div>
       </div>
-      <div className={`grid gap-4 ${
-        layout === 'single' ? 'grid-cols-1' : 
-        layout === 'double' ? 'grid-cols-1 md:grid-cols-2' : 
-        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-      }`}>
-        {/* Aktuelles Wetter Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Aktuelles Wetter</CardTitle>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">{new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
-                <div 
-                  className={`w-2 h-2 rounded-full ${dataSource === 'db' ? 'bg-green-500' : 'bg-red-500'}`}
-                  title={`Daten von ${dataSource === 'db' ? 'Datenbank' : 'API'}`}
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <div className="flex items-center gap-2">
-                {weatherData.current.is_day ? (
-                  <Sun className="h-8 w-8 text-yellow-500" />
-                ) : (
-                  <Moon className="h-8 w-8 text-blue-400" />
-                )}
-                <div>
-                  <span className="text-4xl font-medium text-gray-100">{weatherData.current.temperature_2m}°C</span>
-                  <p className="text-gray-400">{getWeatherDescription(weatherData.current.weather_code)}</p>
-                </div>
-                <div className="ml-auto">
-                  <p className="text-sm text-gray-400">Gefühlt wie</p>
-                  <p className="text-xl text-gray-200">{weatherData.current.apparent_temperature}°C</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-900 p-4 rounded-lg">
-                <p className="text-sm text-gray-400">Luftfeuchte</p>
-                <div className="flex items-center gap-2">
-                  <Droplets className="h-4 w-4 text-blue-500" />
-                  <span className="text-2xl text-gray-100">{weatherData.current.relative_humidity_2m}%</span>
-                </div>
-              </div>
-              <div className="bg-gray-900 p-4 rounded-lg">
-                <p className="text-sm text-gray-400">Wind</p>
-                <div className="flex items-center gap-2">
-                  <Wind className="h-4 w-4 text-blue-500" />
-                  <span className="text-2xl text-gray-100">{weatherData.current.wind_speed_10m} km/h</span>
-                </div>
-              </div>
-              <div className="bg-gray-900 p-4 rounded-lg">
-                <p className="text-sm text-gray-400">Regen</p>
-                <div className="flex items-center gap-2">
-                  <CloudRain className="h-4 w-4 text-blue-500" />
-                  <span className="text-2xl text-gray-100">{weatherData.current.precipitation} mm</span>
-                </div>
-              </div>
-              <div className="bg-gray-900 p-4 rounded-lg">
-                <p className="text-sm text-gray-400">Luftdruck</p>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-blue-500" />
-                  <span className="text-2xl text-gray-100">{weatherData.current.pressure_msl} hPa</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="bg-gray-900 p-4 rounded-lg">
-                <p className="text-sm text-gray-400">UV-Index</p>
-                <div className="flex items-center gap-2">
-                  <Sun className="h-4 w-4 text-yellow-500" />
-                  <span className="text-2xl text-gray-100">{weatherData.current.uv_index}</span>
-                  <span className="text-sm px-2 py-0.5 rounded bg-green-900 text-green-300">Niedrig</span>
-                </div>
-              </div>
-              <div className="bg-gray-900 p-4 rounded-lg">
-                <p className="text-sm text-gray-400">Sonnenzeiten</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <Sun className="h-3 w-3 text-yellow-500" />
-                    <span className="text-gray-200">08:05</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Moon className="h-3 w-3 text-blue-400" />
-                    <span className="text-gray-200">16:38</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pollenflug Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Pollenflug</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              {pollenData && getCurrentPollenData(pollenData) ? (
-                Object.entries(getCurrentPollenData(pollenData)).map(([type, value]) => (
-                  <div key={type} className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400 capitalize">{type}</p>
-                    <div className="flex items-center gap-2">
-                      <Flower2 className="h-4 w-4 text-purple-500" />
-                      <span className="text-2xl text-gray-100">{value}</span>
-                      <span className={`text-sm px-2 py-0.5 rounded ${
-                        Number(value) > 4 ? 'bg-red-900 text-red-300' :
-                        Number(value) > 2 ? 'bg-yellow-900 text-yellow-300' :
-                        'bg-green-900 text-green-300'
-                      }`}>
-                        {Number(value) > 4 ? 'Hoch' :
-                         Number(value) > 2 ? 'Mittel' : 'Niedrig'}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-2 text-center text-gray-400">
-                  Keine Pollendaten verfügbar
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Biometeorologie Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Biometeorologie</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              {biometeoData && (
-                <>
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">Kreislaufbelastung</p>
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-4 w-4 text-red-500" />
-                      <span className="text-2xl text-gray-100">{biometeoData.circulatory_stress}</span>
-                      <span className={`text-sm px-2 py-0.5 rounded ${
-                        biometeoData.circulatory_stress === 'Hoch' ? 'bg-red-900 text-red-300' :
-                        biometeoData.circulatory_stress === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                        'bg-green-900 text-green-300'
-                      }`}>
-                        {biometeoData.circulatory_stress}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">Kopfschmerz-Risiko</p>
-                    <div className="flex items-center gap-2">
-                      <Pill className="h-4 w-4 text-blue-500" />
-                      <span className="text-2xl text-gray-100">{biometeoData.headache_risk}</span>
-                      <span className={`text-sm px-2 py-0.5 rounded ${
-                        biometeoData.headache_risk === 'Hoch' ? 'bg-red-900 text-red-300' :
-                        biometeoData.headache_risk === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                        'bg-green-900 text-green-300'
-                      }`}>
-                        {biometeoData.headache_risk}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">Rheuma-Belastung</p>
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-orange-500" />
-                      <span className="text-2xl text-gray-100">{biometeoData.rheumatic_stress}</span>
-                      <span className={`text-sm px-2 py-0.5 rounded ${
-                        biometeoData.rheumatic_stress === 'Hoch' ? 'bg-red-900 text-red-300' :
-                        biometeoData.rheumatic_stress === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                        'bg-green-900 text-green-300'
-                      }`}>
-                        {biometeoData.rheumatic_stress}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">Asthma-Risiko</p>
-                    <div className="flex items-center gap-2">
-                      <Wind className="h-4 w-4 text-cyan-500" />
-                      <span className="text-2xl text-gray-100">{biometeoData.asthma_risk}</span>
-                      <span className={`text-sm px-2 py-0.5 rounded ${
-                        biometeoData.asthma_risk === 'Hoch' ? 'bg-red-900 text-red-300' :
-                        biometeoData.asthma_risk === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                        'bg-green-900 text-green-300'
-                      }`}>
-                        {biometeoData.asthma_risk}
-                      </span>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Luftqualität Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Luftqualität</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {airQualityData ? (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Luftqualitätsindex (AQI)</p>
-                  <div className="flex items-center gap-2">
-                    <Cloud className="h-4 w-4 text-blue-500" />
-                    <span className="text-2xl text-gray-100">{airQualityData.current.european_aqi}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      airQualityData.current.european_aqi > 75 ? 'bg-red-900 text-red-300' :
-                      airQualityData.current.european_aqi > 50 ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {airQualityData.current.european_aqi > 75 ? 'Schlecht' :
-                       airQualityData.current.european_aqi > 50 ? 'Mäßig' : 'Gut'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">PM2.5</p>
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                      <span className="text-2xl text-gray-100">{airQualityData.current.pm2_5}</span>
-                      <span className="text-sm text-gray-400">µg/m³</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">PM10</p>
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                      <span className="text-2xl text-gray-100">{airQualityData.current.pm10}</span>
-                      <span className="text-sm text-gray-400">µg/m³</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">Ozon</p>
-                    <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4 text-blue-500" />
-                      <span className="text-2xl text-gray-100">{airQualityData.current.ozone}</span>
-                      <span className="text-sm text-gray-400">µg/m³</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-900 p-4 rounded-lg">
-                    <p className="text-sm text-gray-400">Stickstoffdioxid</p>
-                    <div className="flex items-center gap-2">
-                      <Cloud className="h-4 w-4 text-purple-500" />
-                      <span className="text-2xl text-gray-100">{airQualityData.current.nitrogen_dioxide}</span>
-                      <span className="text-sm text-gray-400">µg/m³</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-gray-400">
-                Keine Luftqualitätsdaten verfügbar
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 7-Tage Vorhersage Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">7-Tage Vorhersage</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              {weatherData.daily.time.map((date: string, index: number) => (
-                <div key={date} className="bg-gray-900 p-4 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="text-gray-200">
-                        {new Date(date).toLocaleDateString('de-DE', { weekday: 'long' })}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {weatherData.daily.weather_code[index] < 3 ? (
-                          <Sun className="h-4 w-4 text-yellow-500" />
-                        ) : weatherData.daily.weather_code[index] < 60 ? (
-                          <Cloud className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <CloudRain className="h-4 w-4 text-blue-500" />
-                        )}
-                        <span className="text-sm text-gray-400">
-                          {getWeatherDescription(weatherData.daily.weather_code[index])}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400">{weatherData.daily.temperature_2m_min[index]}°</span>
-                      <span className="text-xl text-gray-200">{weatherData.daily.temperature_2m_max[index]}°</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Medizinische Wetterwarnungen Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Medizinische Wetterwarnungen</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {medicalWeatherData && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Migräne-Index</p>
-                  <div className="flex items-center gap-2">
-                    <Pill className="h-4 w-4 text-purple-500" />
-                    <span className="text-2xl text-gray-100">{medicalWeatherData.migraineIndex}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      medicalWeatherData.migraineIndex === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      medicalWeatherData.migraineIndex === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {medicalWeatherData.migraineIndex}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Allergie-Warnung</p>
-                  <div className="flex items-center gap-2">
-                    <Flower2 className="h-4 w-4 text-pink-500" />
-                    <span className="text-2xl text-gray-100">{medicalWeatherData.allergyAlert}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      medicalWeatherData.allergyAlert === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      medicalWeatherData.allergyAlert === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {medicalWeatherData.allergyAlert}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Erkältungsrisiko</p>
-                  <div className="flex items-center gap-2">
-                    <Thermometer className="h-4 w-4 text-blue-500" />
-                    <span className="text-2xl text-gray-100">{medicalWeatherData.coldRisk}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      medicalWeatherData.coldRisk === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      medicalWeatherData.coldRisk === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {medicalWeatherData.coldRisk}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">UV-Schutz</p>
-                  <div className="flex items-center gap-2">
-                    <Sun className="h-4 w-4 text-yellow-500" />
-                    <span className="text-lg text-gray-100">{medicalWeatherData.recommendations.sunProtection}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Saisonale Gesundheit Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Saisonale Gesundheit</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {seasonalHealth && (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Grippesaison-Risiko</p>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{seasonalHealth.fluSeason}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      seasonalHealth.fluSeason === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      seasonalHealth.fluSeason === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {seasonalHealth.fluSeason}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Saisonale Allergene</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {seasonalHealth.seasonalAllergies.map((allergy, index) => (
-                      <span key={index} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {allergy}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Impfempfehlungen</p>
-                  <div className="space-y-2 mt-2">
-                    {seasonalHealth.vaccineRecommendations.map((rec, index) => (
-                      <p key={index} className="text-sm text-gray-200">
-                        {rec}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Chronische Erkrankungen Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Chronische Erkrankungen</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {chronicConditionIndex && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">COPD-Risiko</p>
-                  <div className="flex items-center gap-2">
-                    <Wind className="h-4 w-4 text-blue-500" />
-                    <span className="text-2xl text-gray-100">{chronicConditionIndex.copd_risk}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      chronicConditionIndex.copd_risk === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      chronicConditionIndex.copd_risk === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {chronicConditionIndex.copd_risk}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-2">{chronicConditionIndex.recommendations.copd}</p>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Rheuma-Belastung</p>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{chronicConditionIndex.rheumatic_load}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      chronicConditionIndex.rheumatic_load === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      chronicConditionIndex.rheumatic_load === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {chronicConditionIndex.rheumatic_load}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-2">{chronicConditionIndex.recommendations.rheumatic}</p>
-                </div>
-
-                <div className="col-span-2 bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Herz-Kreislauf-Belastung</p>
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-4 w-4 text-red-500" />
-                    <span className="text-2xl text-gray-100">{chronicConditionIndex.cardiovascular_stress}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      chronicConditionIndex.cardiovascular_stress === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      chronicConditionIndex.cardiovascular_stress === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {chronicConditionIndex.cardiovascular_stress}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-2">{chronicConditionIndex.recommendations.cardiovascular}</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Medikamenten-Timing Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Medikamenten-Timing</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {medicationTiming && (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Optimal Einnahmezeiten</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {Object.entries(medicationTiming.optimal_times).map(([time, recommendation]) => (
-                      <span key={time} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {time}: {recommendation}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">UV-Warnungen</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {medicationTiming.uv_warnings.map((warning, index) => (
-                      <span key={index} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {warning}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Lagerungsempfehlungen</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {medicationTiming.storage_recommendations.map((recommendation, index) => (
-                      <span key={index} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {recommendation}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Senioren-Gesundheit Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Senioren-Gesundheit</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {seniorHealth && (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Sturzrisiko</p>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{seniorHealth.fall_risk}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      seniorHealth.fall_risk === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      seniorHealth.fall_risk === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {seniorHealth.fall_risk}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Temperaturbelastung</p>
-                  <div className="flex items-center gap-2">
-                    <Thermometer className="h-4 w-4 text-blue-500" />
-                    <span className="text-2xl text-gray-100">{seniorHealth.temperature_stress}</span>
-                    <span className={`text-sm px-2 py-0.5 rounded ${
-                      seniorHealth.temperature_stress === 'Hoch' ? 'bg-red-900 text-red-300' :
-                      seniorHealth.temperature_stress === 'Mittel' ? 'bg-yellow-900 text-yellow-300' :
-                      'bg-green-900 text-green-300'
-                    }`}>
-                      {seniorHealth.temperature_stress}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Aktivitätsempfehlung</p>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{seniorHealth.outdoor_activity}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Heilpflanzen & Kräuter Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Heilpflanzen & Kräuter</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {herbalMedicine && (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Sammelzeiten</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {Object.entries(herbalMedicine.collection_times).map(([time, recommendation]) => (
-                      <span key={time} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {time}: {recommendation}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Lagerungsempfehlungen</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {herbalMedicine.storage_conditions.map((recommendation, index) => (
-                      <span key={index} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {recommendation}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Saisonale Heilpflanzen</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {herbalMedicine.seasonal_herbs.map((herb, index) => (
-                      <span key={index} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {herb}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Therapie-Wetter Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Therapie-Wetter</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {therapyWeather && (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Outdoor-Therapie</p>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{therapyWeather.outdoor_therapy}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Atembedingungen</p>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{therapyWeather.breathing_conditions}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Bewegungstherapie</p>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{therapyWeather.movement_therapy.best_time}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Homöopathie & Naturheilkunde Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Homöopathie & Naturheilkunde</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {naturalMedicine && (
-              <div className="space-y-4">
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Mondphase</p>
-                  <div className="flex items-center gap-2">
-                    <Moon className="h-4 w-4 text-blue-500" />
-                    <span className="text-2xl text-gray-100">{naturalMedicine.moonphase.phase}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Schüßler-Salze</p>
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                    <span className="text-2xl text-gray-100">{naturalMedicine.schuessler_salts.primary}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Bach-Blüten</p>
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-orange-500" />
-                    <span className="text-2xl text-gray-100">{naturalMedicine.bach_flowers.recommendation}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400">Naturheilkundliche Anwendungen</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {naturalMedicine.natural_remedies.map((remedy, index) => (
-                      <span key={index} className="text-sm text-gray-200 bg-gray-800 px-2 py-1 rounded">
-                        {remedy}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Luftqualität & Gesundheit Card */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-medium text-gray-200">Luftqualität & Gesundheit</CardTitle>
-              <div 
-                className="w-2 h-2 rounded-full bg-red-500"
-                title="Daten von API"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {airQualityHealth && (
-              <div className="space-y-6">
-                {/* Hauptempfehlung */}
-                <div className="bg-gray-900 p-6 rounded-lg border border-gray-700">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Cloud className="h-6 w-6 text-blue-500" />
-                    <p className="text-lg font-medium text-gray-200">Tagesempfehlung</p>
-                  </div>
-                  <p className="text-gray-300">{airQualityHealth.general_recommendation}</p>
-                </div>
-
-                {/* Gesundheitliche Auswirkungen */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Gesundheitliche Auswirkungen</h3>
-                  <div className="grid gap-4">
-                    {Object.entries(airQualityHealth.health_impacts).map(([group, impact]) => (
-                      <div key={group} className="bg-gray-900 p-4 rounded-lg border border-gray-700">
-                        <div className="flex items-center gap-2 mb-2">
-                          {group === 'respiratory' ? (
-                            <Wind className="h-4 w-4 text-cyan-500" />
-                          ) : group === 'cardiovascular' ? (
-                            <Heart className="h-4 w-4 text-red-500" />
-                          ) : (
-                            <Users className="h-4 w-4 text-yellow-500" />
-                          )}
-                          <p className="text-sm font-medium text-gray-300 capitalize">
-                            {group === 'respiratory' ? 'Atemwege' :
-                             group === 'cardiovascular' ? 'Herz-Kreislauf' :
-                             'Risikogruppen'}
-                          </p>
-                        </div>
-                        <p className="text-sm text-gray-400">{impact}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Aktivitätsempfehlungen */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Aktivitätsempfehlungen</h3>
-                  <div className="grid gap-4">
-                    {Object.entries(airQualityHealth.activity_recommendations)
-                      .filter(([_, value]) => value !== undefined)
-                      .map(([activity, recommendation]) => (
-                      <div key={activity} className="bg-gray-900 p-4 rounded-lg border border-gray-700">
-                        <div className="flex items-center gap-2 mb-2">
-                          {activity === 'outdoor_sports' ? (
-                            <Activity className="h-4 w-4 text-green-500" />
-                          ) : activity === 'ventilation' ? (
-                            <Wind className="h-4 w-4 text-blue-500" />
-                          ) : (
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                          )}
-                          <p className="text-sm font-medium text-gray-300">
-                            {activity === 'outdoor_sports' ? 'Sport im Freien' :
-                             activity === 'ventilation' ? 'Lüftung' :
-                             'Schutzmaßnahmen'}
-                          </p>
-                        </div>
-                        <p className="text-sm text-gray-400">{recommendation}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Schadstoff-Details */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">Schadstoff-Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {Object.entries(airQualityHealth.pollutant_details).map(([pollutant, detail]) => (
-                      <div key={pollutant} className="bg-gray-900 p-4 rounded-lg border border-gray-700">
-                        <div className="flex items-center gap-2 mb-2">
-                          {pollutant.includes('pm') ? (
-                            <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          ) : pollutant.includes('ozone') ? (
-                            <Cloud className="h-4 w-4 text-blue-500" />
-                          ) : (
-                            <Wind className="h-4 w-4 text-purple-500" />
-                          )}
-                          <p className="text-sm font-medium text-gray-300">
-                            {pollutant.includes('pm25') ? 'Feinstaub PM2.5' :
-                             pollutant.includes('pm10') ? 'Feinstaub PM10' :
-                             pollutant.includes('ozone') ? 'Ozon' : 'Stickoxide'}
-                          </p>
-                        </div>
-                        <p className="text-sm text-gray-400">{detail}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className={`grid ${getLayoutClasses()}`}>
+        <CurrentWeatherCard 
+          weatherData={weatherData} 
+          dataSource={dataSource} 
+          onSourceToggle={handleSourceToggle}
+          isLoading={loading}
+        />
       </div>
     </div>
   )

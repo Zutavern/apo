@@ -67,7 +67,7 @@ export async function GET(request: Request) {
         last_updated: new Date().toISOString()
       }, {
         onConflict: 'location_id'
-      });
+      })
 
     if (error) {
       console.error('Fehler beim Speichern:', error)
