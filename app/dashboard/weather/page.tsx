@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Cloud, LayoutList, LayoutGrid, Layout } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
+import { PollenCard } from './components/cards/PollenCard'
 import { supabase } from '@/lib/supabase'
 
 type WeatherData = {
@@ -736,7 +737,8 @@ export default function WeatherPage() {
   const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<'api' | 'db'>('db')
+  const [weatherDataSource, setWeatherDataSource] = useState<'api' | 'db'>('db')
+  const [pollenDataSource, setPollenDataSource] = useState<'api' | 'db'>('db')
   const [layout, setLayout] = useState<'single' | 'double' | 'triple'>('single')
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
@@ -745,7 +747,7 @@ export default function WeatherPage() {
       setLoading(true)
       setError(null)
       
-      // Direkt von der API laden
+      // Wetterdaten von der API laden
       const updateResponse = await fetch('/api/weather/update')
       if (!updateResponse.ok) {
         throw new Error('Fehler beim Aktualisieren der Wetterdaten')
@@ -778,50 +780,27 @@ export default function WeatherPage() {
             pressure_msl_mean: [weatherResponse.data.pressure_msl]
           }
         })
-        setDataSource('api')
+        setWeatherDataSource('api')
         setLastUpdate(new Date())
-      } else {
-        throw new Error('Keine Wetterdaten verfügbar')
       }
 
-      // Rest der Daten von APIs laden...
-      const [pollenResponse, airQualityResponse] = await Promise.all([
-        fetch(
-          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${HOHENMOLSEN_COORDS.latitude}&longitude=${HOHENMOLSEN_COORDS.longitude}&hourly=dust,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,ragweed_pollen`
-        ),
-        fetch(
-          `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${HOHENMOLSEN_COORDS.latitude}&longitude=${HOHENMOLSEN_COORDS.longitude}&current=pm10,pm2_5,nitrogen_dioxide,ozone,european_aqi`
-        )
-      ])
-
-      if (!pollenResponse.ok || !airQualityResponse.ok) {
-        throw new Error('Fehler beim Abrufen der Daten')
+      // Pollen-Daten von der API laden und aktualisieren
+      const pollenUpdateResponse = await fetch('/api/pollen/update')
+      if (!pollenUpdateResponse.ok) {
+        throw new Error('Fehler beim Aktualisieren der Pollendaten')
       }
 
-      const [pollenApiData, airQualityApiData] = await Promise.all([
-        pollenResponse.json() as Promise<PollenApiResponse>,
-        airQualityResponse.json()
-      ])
-
-      const currentHour = new Date().getHours()
-      
-      setPollenData({
-        alder: pollenApiData.hourly.alder_pollen[currentHour] || 0,
-        birch: pollenApiData.hourly.birch_pollen[currentHour] || 0,
-        grass: pollenApiData.hourly.grass_pollen[currentHour] || 0,
-        mugwort: pollenApiData.hourly.mugwort_pollen[currentHour] || 0,
-        ragweed: pollenApiData.hourly.ragweed_pollen[currentHour] || 0
-      })
-
-      setAirQualityData({
-        current: {
-          pm10: airQualityApiData.current.pm10,
-          pm2_5: airQualityApiData.current.pm2_5,
-          nitrogen_dioxide: airQualityApiData.current.nitrogen_dioxide,
-          ozone: airQualityApiData.current.ozone,
-          european_aqi: airQualityApiData.current.european_aqi
-        }
-      })
+      const pollenResponse = await pollenUpdateResponse.json()
+      if (pollenResponse.success && pollenResponse.data) {
+        setPollenData({
+          alder: pollenResponse.data.alder || 0,
+          birch: pollenResponse.data.birch || 0,
+          grass: pollenResponse.data.grass || 0,
+          mugwort: pollenResponse.data.mugwort || 0,
+          ragweed: pollenResponse.data.ragweed || 0
+        })
+        setPollenDataSource('api')
+      }
 
     } catch (err) {
       console.error('Fetch Error:', err)
@@ -836,13 +815,13 @@ export default function WeatherPage() {
       setLoading(true)
       setError(null)
 
-      // Verwende API-Route statt direktem Supabase-Zugriff
-      const response = await fetch('/api/weather/current')
-      if (!response.ok) {
+      // Wetterdaten von der DB laden
+      const weatherResponse = await fetch('/api/weather/current')
+      if (!weatherResponse.ok) {
         throw new Error('Fehler beim Laden der Wetterdaten')
       }
 
-      const weatherDbData = await response.json()
+      const weatherDbData = await weatherResponse.json()
       
       if (weatherDbData) {
         console.log('Wetterdaten aus DB:', weatherDbData)
@@ -872,12 +851,26 @@ export default function WeatherPage() {
             pressure_msl_mean: [weatherDbData.pressure_msl]
           }
         })
-        setDataSource('db')
+        setWeatherDataSource('db')
         setLastUpdate(new Date(weatherDbData.last_updated))
-      } else {
-        console.log('Keine Wetterdaten in der DB gefunden')
-        setError('Keine Wetterdaten verfügbar')
       }
+
+      // Pollen-Daten von der DB laden
+      const pollenResponse = await fetch('/api/pollen/current')
+      if (pollenResponse.ok) {
+        const pollenDbData = await pollenResponse.json()
+        if (pollenDbData) {
+          setPollenData({
+            alder: pollenDbData.alder || 0,
+            birch: pollenDbData.birch || 0,
+            grass: pollenDbData.grass || 0,
+            mugwort: pollenDbData.mugwort || 0,
+            ragweed: pollenDbData.ragweed || 0
+          })
+          setPollenDataSource('db')
+        }
+      }
+
     } catch (err) {
       console.error('Database Error:', err)
       setError(err instanceof Error ? err.message : 'Fehler beim Laden der Datenbank-Daten')
@@ -906,9 +899,77 @@ export default function WeatherPage() {
     })
   }
 
-  const handleSourceToggle = () => {
-    // Hier später die eigentliche Logik implementieren
-    setDataSource(current => current === 'api' ? 'db' : 'api')
+  const handlePollenSourceToggle = async () => {
+    try {
+      setLoading(true)
+      const newSource = pollenDataSource === 'api' ? 'db' : 'api'
+      const endpoint = newSource === 'api' ? '/api/pollen/update' : '/api/pollen/current'
+      
+      const response = await fetch(endpoint)
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        setPollenData({
+          alder: data.data.alder || 0,
+          birch: data.data.birch || 0,
+          grass: data.data.grass || 0,
+          mugwort: data.data.mugwort || 0,
+          ragweed: data.data.ragweed || 0
+        })
+        setPollenDataSource(newSource)
+      }
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Pollendaten:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleWeatherSourceToggle = async () => {
+    try {
+      setLoading(true)
+      const newSource = weatherDataSource === 'api' ? 'db' : 'api'
+      const endpoint = newSource === 'api' ? '/api/weather/update' : '/api/weather/current'
+      
+      const response = await fetch(endpoint)
+      const data = await response.json()
+
+      if (data) {
+        setWeatherData({
+          current: {
+            temperature_2m: data.temperature_2m,
+            relative_humidity_2m: data.relative_humidity_2m,
+            apparent_temperature: data.apparent_temperature,
+            precipitation: data.precipitation,
+            wind_speed_10m: data.wind_speed_10m,
+            weather_code: data.weather_code,
+            is_day: data.is_day ? 1 : 0,
+            uv_index: data.uv_index,
+            pressure_msl: data.pressure_msl,
+            surface_pressure: data.surface_pressure
+          },
+          daily: {
+            time: [new Date().toISOString().split('T')[0]],
+            temperature_2m_max: [data.temperature_2m + 2],
+            temperature_2m_min: [data.temperature_2m - 2],
+            precipitation_sum: [data.precipitation * 24],
+            weather_code: [data.weather_code],
+            sunrise: [data.sunrise],
+            sunset: [data.sunset],
+            uv_index_max: [data.uv_index],
+            pressure_msl_mean: [data.pressure_msl]
+          }
+        })
+        if (data.last_updated) {
+          setLastUpdate(new Date(data.last_updated))
+        }
+        setWeatherDataSource(newSource)
+      }
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Wetterdaten:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Berechne Biometeorologie-Daten
@@ -1136,8 +1197,14 @@ export default function WeatherPage() {
       <div className={`grid ${getLayoutClasses()}`}>
         <CurrentWeatherCard 
           weatherData={weatherData} 
-          dataSource={dataSource} 
-          onSourceToggle={handleSourceToggle}
+          dataSource={weatherDataSource} 
+          onSourceToggle={handleWeatherSourceToggle}
+          isLoading={loading}
+        />
+        <PollenCard 
+          pollenData={pollenData}
+          dataSource={pollenDataSource}
+          onSourceToggle={handlePollenSourceToggle}
           isLoading={loading}
         />
       </div>
