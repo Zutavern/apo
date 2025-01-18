@@ -5,24 +5,27 @@ interface RiskBadgeProps {
 export function RiskBadge({ level }: RiskBadgeProps) {
   if (level === -1) {
     return (
-      <span className="inline-flex items-center rounded-md bg-gray-500/10 px-2 py-1 text-xs font-medium text-gray-400 ring-1 ring-inset ring-gray-500/20">
+      <span className="inline-flex items-center px-2 py-1 rounded bg-gray-700/50 text-gray-400 text-sm">
         N/A
       </span>
     )
   }
 
-  const color = level >= 4 ? 'red' : level >= 2 ? 'yellow' : 'green'
-  const text = level >= 4 ? 'Hoch' : level >= 2 ? 'Mittel' : 'Niedrig'
+  const getColorClasses = (level: number) => {
+    if (level >= 4) return 'bg-red-500/20 text-red-400'
+    if (level >= 2) return 'bg-yellow-500/20 text-yellow-400'
+    return 'bg-green-500/20 text-green-400'
+  }
 
-  const colors = {
-    red: 'bg-red-500/10 text-red-400 ring-red-500/20',
-    yellow: 'bg-yellow-500/10 text-yellow-400 ring-yellow-500/20',
-    green: 'bg-green-500/10 text-green-400 ring-green-500/20'
+  const getRiskText = (level: number) => {
+    if (level >= 4) return 'Hoch'
+    if (level >= 2) return 'Mittel'
+    return 'Niedrig'
   }
 
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${colors[color]}`}>
-      {text}
+    <span className={`inline-flex items-center px-2 py-1 rounded ${getColorClasses(level)}`}>
+      {getRiskText(level)}
     </span>
   )
 } 

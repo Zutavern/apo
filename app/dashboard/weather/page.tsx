@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud, LayoutList, LayoutGrid, Layout } from 'lucide-react'
+import { Cloud } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { PollenCard } from './components/cards/PollenCard'
+import { ForecastCard } from './components/cards/ForecastCard'
 import { supabase } from '@/lib/supabase'
 
 type WeatherData = {
@@ -178,6 +179,20 @@ type AirQualityHealth = {
     pm25_impact: string
     pm10_impact: string
     ozone_impact: string
+  }
+}
+
+type ForecastData = {
+  daily: {
+    time: string[]
+    temperature_2m_max: number[]
+    temperature_2m_min: number[]
+    precipitation_sum: number[]
+    weather_code: number[]
+    sunrise: string[]
+    sunset: string[]
+    uv_index_max: number[]
+    pressure_msl_mean: number[]
   }
 }
 
@@ -731,151 +746,261 @@ function calculateAirQualityHealth(airQualityData: AirQualityData | null): AirQu
   };
 }
 
+const loadApiData = async () => {
+  const response = await fetch('/api/weather/forecast/update');
+  if (!response.ok) {
+    throw new Error('Fehler beim Laden der API-Daten');
+  }
+  const data = await response.json();
+  
+  // Konvertiere Array-Format in daily-Format
+  if (data.success && Array.isArray(data.data)) {
+    const formattedData = {
+      success: true,
+      data: {
+        daily: {
+          time: data.data.map(d => d.date),
+          temperature_2m_max: data.data.map(d => d.temperature_2m_max),
+          temperature_2m_min: data.data.map(d => d.temperature_2m_min),
+          precipitation_sum: data.data.map(d => d.precipitation_sum),
+          weather_code: data.data.map(d => d.weather_code),
+          sunrise: data.data.map(d => d.sunrise),
+          sunset: data.data.map(d => d.sunset),
+          uv_index_max: data.data.map(d => d.uv_index_max),
+          pressure_msl_mean: data.data.map(d => d.pressure_msl_mean)
+        }
+      }
+    };
+    return formattedData;
+  }
+  
+  return data;
+};
+
+const loadDbData = async () => {
+  const response = await fetch('/api/weather/forecast/current');
+  if (!response.ok) {
+    throw new Error('Fehler beim Laden der DB-Daten');
+  }
+  return response.json();
+};
+
 export default function WeatherPage() {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [pollenData, setPollenData] = useState<PollenData | null>(null)
-  const [airQualityData, setAirQualityData] = useState<AirQualityData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [forecastData, setForecastData] = useState<ForecastData | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false)
+  const [isLoadingPollen, setIsLoadingPollen] = useState(false)
+  const [isLoadingForecast, setIsLoadingForecast] = useState(false)
+  
   const [weatherDataSource, setWeatherDataSource] = useState<'api' | 'db'>('db')
   const [pollenDataSource, setPollenDataSource] = useState<'api' | 'db'>('db')
-  const [layout, setLayout] = useState<'single' | 'double' | 'triple'>('single')
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [forecastDataSource, setForecastDataSource] = useState<'api' | 'db'>('db')
 
   const handleUpdate = async () => {
     try {
-      setLoading(true)
+      setIsLoadingWeather(true)
+      setIsLoadingPollen(true)
+      setIsLoadingForecast(true)
       setError(null)
       
-      // Wetterdaten von der API laden
+      // Wetterdaten von der API laden und in DB speichern
       const updateResponse = await fetch('/api/weather/update')
       if (!updateResponse.ok) {
         throw new Error('Fehler beim Aktualisieren der Wetterdaten')
       }
       
-      const weatherResponse = await updateResponse.json()
-      if (weatherResponse.success && weatherResponse.data) {
+      // Aktuelle Wetterdaten aus der DB laden
+      const weatherResponse = await fetch('/api/weather/current')
+      const weatherData = await weatherResponse.json()
+      
+      if (weatherData) {
         setWeatherData({
           current: {
-            temperature_2m: weatherResponse.data.temperature_2m,
-            relative_humidity_2m: weatherResponse.data.relative_humidity_2m,
-            apparent_temperature: weatherResponse.data.apparent_temperature,
-            precipitation: weatherResponse.data.precipitation,
-            wind_speed_10m: weatherResponse.data.wind_speed_10m,
-            weather_code: weatherResponse.data.weather_code,
-            is_day: weatherResponse.data.is_day ? 1 : 0,
-            uv_index: weatherResponse.data.uv_index,
-            pressure_msl: weatherResponse.data.pressure_msl,
-            surface_pressure: weatherResponse.data.surface_pressure
+            temperature_2m: weatherData.temperature_2m,
+            relative_humidity_2m: weatherData.relative_humidity_2m,
+            apparent_temperature: weatherData.apparent_temperature,
+            precipitation: weatherData.precipitation,
+            wind_speed_10m: weatherData.wind_speed_10m,
+            weather_code: weatherData.weather_code,
+            is_day: weatherData.is_day ? 1 : 0,
+            uv_index: weatherData.uv_index,
+            pressure_msl: weatherData.pressure_msl,
+            surface_pressure: weatherData.surface_pressure
           },
           daily: {
             time: [new Date().toISOString().split('T')[0]],
-            temperature_2m_max: [weatherResponse.data.temperature_2m + 2],
-            temperature_2m_min: [weatherResponse.data.temperature_2m - 2],
-            precipitation_sum: [weatherResponse.data.precipitation * 24],
-            weather_code: [weatherResponse.data.weather_code],
-            sunrise: [weatherResponse.data.sunrise],
-            sunset: [weatherResponse.data.sunset],
-            uv_index_max: [weatherResponse.data.uv_index],
-            pressure_msl_mean: [weatherResponse.data.pressure_msl]
+            temperature_2m_max: [weatherData.temperature_2m + 2],
+            temperature_2m_min: [weatherData.temperature_2m - 2],
+            precipitation_sum: [weatherData.precipitation * 24],
+            weather_code: [weatherData.weather_code],
+            sunrise: [weatherData.sunrise],
+            sunset: [weatherData.sunset],
+            uv_index_max: [weatherData.uv_index],
+            pressure_msl_mean: [weatherData.pressure_msl]
           }
         })
-        setWeatherDataSource('api')
-        setLastUpdate(new Date())
+        if (weatherData.last_updated) {
+          setLastUpdate(new Date(weatherData.last_updated))
+        }
       }
+      setIsLoadingWeather(false)
 
-      // Pollen-Daten von der API laden und aktualisieren
+      // Pollen-Daten von der API laden und in DB speichern
       const pollenUpdateResponse = await fetch('/api/pollen/update')
       if (!pollenUpdateResponse.ok) {
         throw new Error('Fehler beim Aktualisieren der Pollendaten')
       }
 
-      const pollenResponse = await pollenUpdateResponse.json()
-      if (pollenResponse.success && pollenResponse.data) {
+      // Aktuelle Pollendaten aus der DB laden
+      const pollenResponse = await fetch('/api/pollen/current')
+      const pollenData = await pollenResponse.json()
+      
+      if (pollenData.success && pollenData.data) {
         setPollenData({
-          alder: pollenResponse.data.alder || 0,
-          birch: pollenResponse.data.birch || 0,
-          grass: pollenResponse.data.grass || 0,
-          mugwort: pollenResponse.data.mugwort || 0,
-          ragweed: pollenResponse.data.ragweed || 0
+          alder: pollenData.data.alder || 0,
+          birch: pollenData.data.birch || 0,
+          grass: pollenData.data.grass || 0,
+          mugwort: pollenData.data.mugwort || 0,
+          ragweed: pollenData.data.ragweed || 0
         })
-        setPollenDataSource('api')
+      }
+      setIsLoadingPollen(false)
+
+      // Vorhersage-Daten von der API laden und in DB speichern
+      const forecastUpdateResponse = await fetch('/api/weather/forecast/update')
+      if (!forecastUpdateResponse.ok) {
+        throw new Error('Fehler beim Aktualisieren der Vorhersagedaten')
       }
 
-    } catch (err) {
-      console.error('Fetch Error:', err)
-      setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
+      // Aktuelle Vorhersagedaten aus der DB laden
+      const forecastResponse = await fetch('/api/weather/forecast/current')
+      const forecastData = await forecastResponse.json()
+      
+      if (forecastData.success) {
+        const formattedForecastData: ForecastData = {
+          daily: {
+            time: forecastData.data.daily?.time || [],
+            temperature_2m_max: forecastData.data.daily?.temperature_2m_max || [],
+            temperature_2m_min: forecastData.data.daily?.temperature_2m_min || [],
+            precipitation_sum: forecastData.data.daily?.precipitation_sum || [],
+            weather_code: forecastData.data.daily?.weather_code || [],
+            sunrise: forecastData.data.daily?.sunrise || [],
+            sunset: forecastData.data.daily?.sunset || [],
+            uv_index_max: forecastData.data.daily?.uv_index_max || [],
+            pressure_msl_mean: forecastData.data.daily?.pressure_msl_mean || []
+          }
+        }
+        setForecastData(formattedForecastData)
+      }
+
+    } catch (error) {
+      console.error('Fehler beim Update:', error)
+      setError('Fehler beim Aktualisieren der Daten')
     } finally {
-      setLoading(false)
+      setIsLoadingWeather(false)
+      setIsLoadingPollen(false)
+      setIsLoadingForecast(false)
     }
   }
 
   const loadDbData = async () => {
     try {
-      setLoading(true)
+      setIsLoadingWeather(true)
+      setIsLoadingPollen(true)
+      setIsLoadingForecast(true)
       setError(null)
 
-      // Wetterdaten von der DB laden
+      // Lade aktuelle Wetterdaten
       const weatherResponse = await fetch('/api/weather/current')
-      if (!weatherResponse.ok) {
-        throw new Error('Fehler beim Laden der Wetterdaten')
-      }
+      const weatherData = await weatherResponse.json()
 
-      const weatherDbData = await weatherResponse.json()
+      // Lade Pollendaten
+      const pollenResponse = await fetch('/api/pollen/current')
+      const pollenData = await pollenResponse.json()
+
+      // Lade Vorhersagedaten
+      const forecastResponse = await fetch('/api/weather/forecast/current')
+      const forecastData = await forecastResponse.json()
       
-      if (weatherDbData) {
-        console.log('Wetterdaten aus DB:', weatherDbData)
-        
+      console.log('Raw Forecast DB Response:', forecastData)
+
+      if (weatherData) {
         setWeatherData({
           current: {
-            temperature_2m: weatherDbData.temperature_2m,
-            relative_humidity_2m: weatherDbData.relative_humidity_2m,
-            apparent_temperature: weatherDbData.apparent_temperature,
-            precipitation: weatherDbData.precipitation,
-            wind_speed_10m: weatherDbData.wind_speed_10m,
-            weather_code: weatherDbData.weather_code,
-            is_day: weatherDbData.is_day ? 1 : 0,
-            uv_index: weatherDbData.uv_index,
-            pressure_msl: weatherDbData.pressure_msl,
-            surface_pressure: weatherDbData.surface_pressure
+            temperature_2m: weatherData.temperature_2m,
+            relative_humidity_2m: weatherData.relative_humidity_2m,
+            apparent_temperature: weatherData.apparent_temperature,
+            precipitation: weatherData.precipitation,
+            wind_speed_10m: weatherData.wind_speed_10m,
+            weather_code: weatherData.weather_code,
+            is_day: weatherData.is_day ? 1 : 0,
+            uv_index: weatherData.uv_index,
+            pressure_msl: weatherData.pressure_msl,
+            surface_pressure: weatherData.surface_pressure
           },
           daily: {
             time: [new Date().toISOString().split('T')[0]],
-            temperature_2m_max: [weatherDbData.temperature_2m + 2],
-            temperature_2m_min: [weatherDbData.temperature_2m - 2],
-            precipitation_sum: [weatherDbData.precipitation * 24],
-            weather_code: [weatherDbData.weather_code],
-            sunrise: [weatherDbData.sunrise],
-            sunset: [weatherDbData.sunset],
-            uv_index_max: [weatherDbData.uv_index],
-            pressure_msl_mean: [weatherDbData.pressure_msl]
+            temperature_2m_max: [weatherData.temperature_2m + 2],
+            temperature_2m_min: [weatherData.temperature_2m - 2],
+            precipitation_sum: [weatherData.precipitation * 24],
+            weather_code: [weatherData.weather_code],
+            sunrise: [weatherData.sunrise],
+            sunset: [weatherData.sunset],
+            uv_index_max: [weatherData.uv_index],
+            pressure_msl_mean: [weatherData.pressure_msl]
           }
         })
-        setWeatherDataSource('db')
-        setLastUpdate(new Date(weatherDbData.last_updated))
-      }
-
-      // Pollen-Daten von der DB laden
-      const pollenResponse = await fetch('/api/pollen/current')
-      if (pollenResponse.ok) {
-        const pollenDbData = await pollenResponse.json()
-        if (pollenDbData) {
-          setPollenData({
-            alder: pollenDbData.alder || 0,
-            birch: pollenDbData.birch || 0,
-            grass: pollenDbData.grass || 0,
-            mugwort: pollenDbData.mugwort || 0,
-            ragweed: pollenDbData.ragweed || 0
-          })
-          setPollenDataSource('db')
+        if (weatherData.last_updated) {
+          setLastUpdate(new Date(weatherData.last_updated))
         }
       }
+      setIsLoadingWeather(false)
 
-    } catch (err) {
-      console.error('Database Error:', err)
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Datenbank-Daten')
+      if (pollenData.success && pollenData.data) {
+        setPollenData({
+          alder: pollenData.data.alder || 0,
+          birch: pollenData.data.birch || 0,
+          grass: pollenData.data.grass || 0,
+          mugwort: pollenData.data.mugwort || 0,
+          ragweed: pollenData.data.ragweed || 0
+        })
+      }
+      setIsLoadingPollen(false)
+
+      if (forecastData.success) {
+        // Formatiere die Daten direkt im erwarteten Format
+        const formattedForecastData: ForecastData = {
+          daily: {
+            time: forecastData.data.daily?.time || [],
+            temperature_2m_max: forecastData.data.daily?.temperature_2m_max || [],
+            temperature_2m_min: forecastData.data.daily?.temperature_2m_min || [],
+            precipitation_sum: forecastData.data.daily?.precipitation_sum || [],
+            weather_code: forecastData.data.daily?.weather_code || [],
+            sunrise: forecastData.data.daily?.sunrise || [],
+            sunset: forecastData.data.daily?.sunset || [],
+            uv_index_max: forecastData.data.daily?.uv_index_max || [],
+            pressure_msl_mean: forecastData.data.daily?.pressure_msl_mean || []
+          }
+        }
+
+        console.log('Formatted DB Forecast Data:', formattedForecastData)
+        setForecastData(formattedForecastData)
+      } else {
+        console.error('Keine Vorhersagedaten in der DB-Antwort:', forecastData)
+        throw new Error('Keine Vorhersagedaten in der DB-Antwort')
+      }
+
+    } catch (error) {
+      console.error('Fehler beim Laden der Daten:', error)
+      setError('Fehler beim Laden der Daten')
     } finally {
-      setLoading(false)
+      setIsLoadingWeather(false)
+      setIsLoadingPollen(false)
+      setIsLoadingForecast(false)
     }
   }
 
@@ -891,17 +1016,9 @@ export default function WeatherPage() {
     year: 'numeric'
   }).format(currentDate)
 
-  const handleLayoutToggle = () => {
-    setLayout(current => {
-      if (current === 'single') return 'double'
-      if (current === 'double') return 'triple'
-      return 'single'
-    })
-  }
-
   const handlePollenSourceToggle = async () => {
     try {
-      setLoading(true)
+      setIsLoadingPollen(true)
       const newSource = pollenDataSource === 'api' ? 'db' : 'api'
       const endpoint = newSource === 'api' ? '/api/pollen/update' : '/api/pollen/current'
       
@@ -921,13 +1038,13 @@ export default function WeatherPage() {
     } catch (error) {
       console.error('Fehler beim Aktualisieren der Pollendaten:', error)
     } finally {
-      setLoading(false)
+      setIsLoadingPollen(false)
     }
   }
 
   const handleWeatherSourceToggle = async () => {
     try {
-      setLoading(true)
+      setIsLoadingWeather(true)
       const newSource = weatherDataSource === 'api' ? 'db' : 'api'
       const endpoint = newSource === 'api' ? '/api/weather/update' : '/api/weather/current'
       
@@ -968,9 +1085,65 @@ export default function WeatherPage() {
     } catch (error) {
       console.error('Fehler beim Aktualisieren der Wetterdaten:', error)
     } finally {
-      setLoading(false)
+      setIsLoadingWeather(false)
     }
   }
+
+  const handleForecastSourceToggle = async () => {
+    setIsLoadingForecast(true);
+    try {
+      const newSource = forecastDataSource === 'api' ? 'db' : 'api';
+      console.log('Toggle Quelle zu:', newSource);
+      setForecastDataSource(newSource);
+      
+      console.log('Lade Daten von:', newSource === 'api' ? '/api/weather/forecast/update' : '/api/weather/forecast/current');
+      const data = await (newSource === 'api' 
+        ? loadApiData()
+        : loadDbData()
+      );
+      
+      console.log('Rohdaten vom Server:', JSON.stringify(data, null, 2));
+      
+      if (!data?.success || !data?.data) {
+        console.error('Keine gültigen Daten in der Antwort:', data);
+        throw new Error('Keine Vorhersagedaten in der Antwort');
+      }
+      
+      if (!data.data.daily) {
+        console.error('Keine daily-Daten in der Antwort:', data.data);
+        throw new Error('Keine daily-Daten in der Antwort');
+      }
+      
+      // Formatiere die Daten als ForecastData-Objekt
+      const formattedData: ForecastData = {
+        daily: {
+          time: data.data.daily?.time || [],
+          temperature_2m_max: data.data.daily?.temperature_2m_max || [],
+          temperature_2m_min: data.data.daily?.temperature_2m_min || [],
+          precipitation_sum: data.data.daily?.precipitation_sum || [],
+          weather_code: data.data.daily?.weather_code || [],
+          sunrise: data.data.daily?.sunrise || [],
+          sunset: data.data.daily?.sunset || [],
+          uv_index_max: data.data.daily?.uv_index_max || [],
+          pressure_msl_mean: data.data.daily?.pressure_msl_mean || []
+        }
+      };
+      
+      console.log('Formatierte Daten:', JSON.stringify(formattedData, null, 2));
+      setForecastData(formattedData);
+      
+      if (data.last_updated) {
+        console.log('Setze letztes Update auf:', new Date(data.last_updated));
+        setLastUpdate(new Date(data.last_updated));
+      }
+      
+    } catch (error) {
+      console.error('Fehler beim Laden der Vorhersagedaten:', error);
+      setError('Fehler beim Laden der Vorhersagedaten');
+    } finally {
+      setIsLoadingForecast(false);
+    }
+  };
 
   // Berechne Biometeorologie-Daten
   const biometeoData = weatherData ? calculateBiometeoData(weatherData) : null
@@ -990,58 +1163,22 @@ export default function WeatherPage() {
   const therapyWeather = weatherData ? calculateTherapyWeather(weatherData) : null;
   const naturalMedicine = weatherData ? calculateNaturalMedicine(weatherData) : null;
 
-  // Berechne Luftqualitäts-Gesundheitsdaten
-  const airQualityHealth = airQualityData ? calculateAirQualityHealth(airQualityData) : null;
-
   console.log('Current State:', {
-    loading,
+    isLoading: isLoadingWeather || isLoadingPollen || isLoadingForecast,
     error,
     weatherData: weatherData ? JSON.stringify(weatherData, null, 2) : null
   })
 
-  const getLayoutIcon = () => {
-    switch (layout) {
-      case 'single':
-        return <LayoutGrid className="h-4 w-4 text-blue-500" />
-      case 'double':
-        return <LayoutList className="h-4 w-4 text-blue-500" />
-      case 'triple':
-        return <Layout className="h-4 w-4 text-blue-500" />
-    }
-  }
-
-  const getLayoutTitle = () => {
-    switch (layout) {
-      case 'single':
-        return "Zweispaltiges Layout"
-      case 'double':
-        return "Dreispaltiges Layout"
-      case 'triple':
-        return "Einspaltiges Layout"
-    }
-  }
-
-  const getLayoutClasses = () => {
-    switch (layout) {
-      case 'single':
-        return 'grid-cols-1'
-      case 'double':
-        return 'grid-cols-1 md:grid-cols-2'
-      case 'triple':
-        return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-    }
-  }
-
-  if (loading) {
+  if (isLoadingWeather || isLoadingPollen || isLoadingForecast) {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">
-              Aktuelles Wetter in Hohenmülsen am {formattedDate}
+              Aktuelles Wetter in Hohenmölsen am {formattedDate}
             </h1>
             <p className="text-sm text-gray-400 mt-1">
-              Letzte Aktualisierung: {lastUpdate.toLocaleTimeString('de-DE', { 
+              Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
                 hour: '2-digit', 
                 minute: '2-digit',
                 day: '2-digit',
@@ -1050,23 +1187,14 @@ export default function WeatherPage() {
               })} Uhr
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-              onClick={handleLayoutToggle}
-              title={getLayoutTitle()}
-            >
-              {getLayoutIcon()}
-            </button>
-            <button
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-              onClick={() => {}}
-              disabled
-            >
-              <Cloud className="h-4 w-4 text-blue-500" />
-              <span>Update Daten</span>
-            </button>
-          </div>
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            onClick={() => {}}
+            disabled
+          >
+            <Cloud className="h-4 w-4 text-blue-500" />
+            <span>Update Daten</span>
+          </button>
         </div>
         <div className="text-center text-gray-500">
           Wetterdaten werden geladen...
@@ -1081,10 +1209,10 @@ export default function WeatherPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">
-              Aktuelles Wetter in Hohenmülsen am {formattedDate}
+              Aktuelles Wetter in Hohenmölsen am {formattedDate}
             </h1>
             <p className="text-sm text-gray-400 mt-1">
-              Letzte Aktualisierung: {lastUpdate.toLocaleTimeString('de-DE', { 
+              Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
                 hour: '2-digit', 
                 minute: '2-digit',
                 day: '2-digit',
@@ -1093,22 +1221,13 @@ export default function WeatherPage() {
               })} Uhr
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-              onClick={handleLayoutToggle}
-              title={getLayoutTitle()}
-            >
-              {getLayoutIcon()}
-            </button>
-            <button
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-              onClick={() => {}}
-            >
-              <Cloud className="h-4 w-4 text-blue-500" />
-              <span>Update Daten</span>
-            </button>
-          </div>
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            onClick={handleUpdate}
+          >
+            <Cloud className="h-4 w-4 text-blue-500" />
+            <span>Update Daten</span>
+          </button>
         </div>
         <div className="text-center text-red-500">
           Fehler: {error}
@@ -1123,10 +1242,10 @@ export default function WeatherPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">
-              Aktuelles Wetter in Hohenmülsen am {formattedDate}
+              Aktuelles Wetter in Hohenmölsen am {formattedDate}
             </h1>
             <p className="text-sm text-gray-400 mt-1">
-              Letzte Aktualisierung: {lastUpdate.toLocaleTimeString('de-DE', { 
+              Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
                 hour: '2-digit', 
                 minute: '2-digit',
                 day: '2-digit',
@@ -1135,22 +1254,13 @@ export default function WeatherPage() {
               })} Uhr
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-              onClick={handleLayoutToggle}
-              title={getLayoutTitle()}
-            >
-              {getLayoutIcon()}
-            </button>
-            <button
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-              onClick={() => {}}
-            >
-              <Cloud className="h-4 w-4 text-blue-500" />
-              <span>Update Daten</span>
-            </button>
-          </div>
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            onClick={handleUpdate}
+          >
+            <Cloud className="h-4 w-4 text-blue-500" />
+            <span>Update Daten</span>
+          </button>
         </div>
         <div className="text-center text-red-500">
           Keine Wetterdaten verfügbar
@@ -1164,10 +1274,10 @@ export default function WeatherPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">
-            Aktuelles Wetter in Hohenmülsen am {formattedDate}
+            Aktuelles Wetter in Hohenmölsen am {formattedDate}
           </h1>
           <p className="text-sm text-gray-400 mt-1">
-            Letzte Aktualisierung: {lastUpdate.toLocaleTimeString('de-DE', { 
+            Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
               hour: '2-digit', 
               minute: '2-digit',
               day: '2-digit',
@@ -1176,36 +1286,35 @@ export default function WeatherPage() {
             })} Uhr
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-            onClick={handleLayoutToggle}
-            title={getLayoutTitle()}
-          >
-            {getLayoutIcon()}
-          </button>
-          <button
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-            onClick={handleUpdate}
-            disabled={loading}
-          >
-            <Cloud className={`h-4 w-4 text-blue-500 ${loading ? 'animate-spin' : ''}`} />
-            <span>{loading ? 'Wird aktualisiert...' : 'Update Daten'}</span>
-          </button>
-        </div>
+        <button
+          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+          onClick={handleUpdate}
+          disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
+        >
+          <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
+          <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
+        </button>
       </div>
-      <div className={`grid ${getLayoutClasses()}`}>
+      <div className="grid gap-4 md:grid-cols-2">
         <CurrentWeatherCard 
           weatherData={weatherData} 
           dataSource={weatherDataSource} 
           onSourceToggle={handleWeatherSourceToggle}
-          isLoading={loading}
+          isLoading={isLoadingWeather}
         />
         <PollenCard 
           pollenData={pollenData}
           dataSource={pollenDataSource}
           onSourceToggle={handlePollenSourceToggle}
-          isLoading={loading}
+          isLoading={isLoadingPollen}
+        />
+      </div>
+      <div className="mt-4">
+        <ForecastCard
+          forecastData={forecastData}
+          dataSource={forecastDataSource}
+          onSourceToggle={handleForecastSourceToggle}
+          isLoading={isLoadingForecast}
         />
       </div>
     </div>

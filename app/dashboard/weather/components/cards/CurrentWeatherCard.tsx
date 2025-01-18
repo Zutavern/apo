@@ -17,10 +17,31 @@ export function CurrentWeatherCard({
   onSourceToggle,
   isLoading = false 
 }: CurrentWeatherCardProps) {
+
+  if (!weatherData?.current) {
+    return (
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base font-semibold text-gray-200">Aktuelles Wetter</CardTitle>
+          <DataSourceIndicator 
+            source={dataSource} 
+            onToggle={onSourceToggle}
+            disabled={isLoading}
+          />
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-gray-400 py-4">
+            Keine Wetterdaten verfügbar
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-200">Aktuelles Wetter</CardTitle>
+        <CardTitle className="text-base font-semibold text-gray-200">Aktuelles Wetter</CardTitle>
         <DataSourceIndicator 
           source={dataSource} 
           onToggle={onSourceToggle}
@@ -34,10 +55,10 @@ export function CurrentWeatherCard({
               <Cloud className="h-8 w-8 text-blue-400" />
               <div>
                 <p className="text-2xl font-bold text-gray-100">
-                  {weatherData.current.temperature_2m.toFixed(1)}°C
+                  {(weatherData.current.temperature_2m ?? 0).toFixed(1)}°C
                 </p>
                 <p className="text-sm text-gray-400">
-                  {getWeatherDescription(weatherData.current.weather_code)}
+                  {getWeatherDescription(weatherData.current.weather_code ?? 0)}
                 </p>
               </div>
             </div>
@@ -48,7 +69,7 @@ export function CurrentWeatherCard({
               <div className="flex items-center space-x-2">
                 <Thermometer className="h-4 w-4 text-red-400" />
                 <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.apparent_temperature.toFixed(1)}°C
+                  {(weatherData.current.apparent_temperature ?? 0).toFixed(1)}°C
                 </span>
               </div>
             </div>
@@ -57,7 +78,7 @@ export function CurrentWeatherCard({
               <div className="flex items-center space-x-2">
                 <Wind className="h-4 w-4 text-blue-400" />
                 <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.wind_speed_10m.toFixed(1)} km/h
+                  {(weatherData.current.wind_speed_10m ?? 0).toFixed(1)} km/h
                 </span>
               </div>
             </div>
@@ -66,7 +87,7 @@ export function CurrentWeatherCard({
               <div className="flex items-center space-x-2">
                 <Droplets className="h-4 w-4 text-blue-400" />
                 <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.relative_humidity_2m}%
+                  {weatherData.current.relative_humidity_2m ?? 0}%
                 </span>
               </div>
             </div>
@@ -75,7 +96,7 @@ export function CurrentWeatherCard({
               <div className="flex items-center space-x-2">
                 <CloudRain className="h-4 w-4 text-blue-400" />
                 <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.precipitation} mm
+                  {weatherData.current.precipitation ?? 0} mm
                 </span>
               </div>
             </div>
@@ -84,12 +105,12 @@ export function CurrentWeatherCard({
               <div className="flex items-center space-x-2">
                 <Sun className="h-4 w-4 text-yellow-400" />
                 <span className={`text-sm font-medium px-2 py-0.5 rounded ${
-                  weatherData.current.uv_index <= 2 ? 'bg-green-500/20 text-green-400' :
-                  weatherData.current.uv_index <= 5 ? 'bg-yellow-500/20 text-yellow-400' :
-                  weatherData.current.uv_index <= 7 ? 'bg-orange-500/20 text-orange-400' :
+                  (weatherData.current.uv_index ?? 0) <= 2 ? 'bg-green-500/20 text-green-400' :
+                  (weatherData.current.uv_index ?? 0) <= 5 ? 'bg-yellow-500/20 text-yellow-400' :
+                  (weatherData.current.uv_index ?? 0) <= 7 ? 'bg-orange-500/20 text-orange-400' :
                   'bg-red-500/20 text-red-400'
                 }`}>
-                  {weatherData.current.uv_index.toFixed(1)}
+                  {(weatherData.current.uv_index ?? 0).toFixed(1)}
                 </span>
               </div>
             </div>
@@ -98,7 +119,7 @@ export function CurrentWeatherCard({
               <div className="flex items-center space-x-2">
                 <Wind className="h-4 w-4 text-blue-400" />
                 <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.pressure_msl} hPa
+                  {weatherData.current.pressure_msl ?? 0} hPa
                 </span>
               </div>
             </div>
@@ -116,8 +137,8 @@ export function CurrentWeatherCard({
             </div>
             <span className="text-xs text-gray-400">
               {weatherData.current.is_day ? 
-                `Sonnenuntergang: ${new Date(weatherData.daily.sunset[0]).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` :
-                `Sonnenaufgang: ${new Date(weatherData.daily.sunrise[0]).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+                `Sonnenuntergang: ${new Date(weatherData.daily.sunset[0] ?? new Date()).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` :
+                `Sonnenaufgang: ${new Date(weatherData.daily.sunrise[0] ?? new Date()).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
               }
             </span>
           </div>
