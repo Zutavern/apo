@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud } from 'lucide-react'
+import { Cloud, Layout, LayoutGrid, Columns, Rows } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { PollenCard } from './components/cards/PollenCard'
 import { ForecastCard } from './components/cards/ForecastCard'
@@ -195,6 +195,8 @@ type ForecastData = {
     pressure_msl_mean: number[]
   }
 }
+
+type LayoutType = 'single' | 'double' | 'triple';
 
 const HOHENMOLSEN_COORDS = {
   latitude: 51.1667,
@@ -800,6 +802,23 @@ export default function WeatherPage() {
   const [pollenDataSource, setPollenDataSource] = useState<'api' | 'db'>('db')
   const [forecastDataSource, setForecastDataSource] = useState<'api' | 'db'>('db')
 
+  const [layoutType, setLayoutType] = useState<LayoutType>('double')
+
+  const handleLayoutToggle = () => {
+    setLayoutType(current => {
+      switch (current) {
+        case 'single':
+          return 'double'
+        case 'double':
+          return 'triple'
+        case 'triple':
+          return 'single'
+        default:
+          return 'double'
+      }
+    })
+  }
+
   const handleUpdate = async () => {
     try {
       setIsLoadingWeather(true)
@@ -1286,16 +1305,37 @@ export default function WeatherPage() {
             })} Uhr
           </p>
         </div>
-        <button
-          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-          onClick={handleUpdate}
-          disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
-        >
-          <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
-          <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            onClick={handleLayoutToggle}
+          >
+            {layoutType === 'single' ? (
+              <Rows className="h-4 w-4 text-blue-500" />
+            ) : layoutType === 'double' ? (
+              <Columns className="h-4 w-4 text-blue-500" />
+            ) : (
+              <LayoutGrid className="h-4 w-4 text-blue-500" />
+            )}
+            <span>{layoutType === 'single' ? '1 Spalte' : layoutType === 'double' ? '2 Spalten' : '3 Spalten'}</span>
+          </button>
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            onClick={handleUpdate}
+            disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
+          >
+            <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
+            <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
+          </button>
+        </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={`grid gap-4 ${
+        layoutType === 'single' 
+          ? 'grid-cols-1' 
+          : layoutType === 'double'
+          ? 'md:grid-cols-2'
+          : 'md:grid-cols-3'
+      }`}>
         <CurrentWeatherCard 
           weatherData={weatherData} 
           dataSource={weatherDataSource} 
@@ -1308,14 +1348,23 @@ export default function WeatherPage() {
           onSourceToggle={handlePollenSourceToggle}
           isLoading={isLoadingPollen}
         />
-      </div>
-      <div className="mt-4">
-        <ForecastCard
-          forecastData={forecastData}
-          dataSource={forecastDataSource}
-          onSourceToggle={handleForecastSourceToggle}
-          isLoading={isLoadingForecast}
-        />
+        {layoutType === 'triple' ? (
+          <ForecastCard
+            forecastData={forecastData}
+            dataSource={forecastDataSource}
+            onSourceToggle={handleForecastSourceToggle}
+            isLoading={isLoadingForecast}
+          />
+        ) : (
+          <div className={`${layoutType === 'single' ? 'col-span-1' : 'col-span-2'}`}>
+            <ForecastCard
+              forecastData={forecastData}
+              dataSource={forecastDataSource}
+              onSourceToggle={handleForecastSourceToggle}
+              isLoading={isLoadingForecast}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
