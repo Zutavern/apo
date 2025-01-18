@@ -1,163 +1,33 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Edit, Trash2 } from 'lucide-react'
-
-type NewsItem = {
-  id: string
-  title: string
-  content: string
-  created_at: string
-}
+import { useRouter } from 'next/navigation'
+import { Newspaper } from 'lucide-react'
 
 export default function NewsPage() {
-  const [news, setNews] = useState<NewsItem[]>([])
-  const [isEditing, setIsEditing] = useState(false)
-  const [currentNews, setCurrentNews] = useState<NewsItem | null>(null)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-
-  const loadNews = async () => {
-    const { data, error } = await supabase
-      .from('news')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (data) setNews(data)
-  }
-
-  useEffect(() => {
-    loadNews()
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (currentNews) {
-      // Update
-      const { error } = await supabase
-        .from('news')
-        .update({ title, content })
-        .eq('id', currentNews.id)
-
-      if (!error) {
-        setIsEditing(false)
-        setCurrentNews(null)
-        await loadNews()
-      }
-    } else {
-      // Create
-      const { error } = await supabase
-        .from('news')
-        .insert([{ title, content }])
-
-      if (!error) {
-        setIsEditing(false)
-        await loadNews()
-      }
-    }
-
-    setTitle('')
-    setContent('')
-  }
+  const router = useRouter()
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Nachrichten</h2>
+    <div className="container mx-auto px-4">
+      <h1 className="text-2xl font-bold text-gray-100 mb-8">Nachrichten</h1>
 
-      {/* News List */}
-      <div className="grid gap-4">
-        {news.map((item) => (
-          <div
-            key={item.id}
-            className="bg-gray-800 rounded-lg border border-gray-700 p-6"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-medium">{item.title}</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setCurrentNews(item)
-                    setTitle(item.title)
-                    setContent(item.content)
-                    setIsEditing(true)
-                  }}
-                  className="text-blue-500 hover:text-blue-400"
-                >
-                  <Edit className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={async () => {
-                    await supabase
-                      .from('news')
-                      .delete()
-                      .eq('id', item.id)
-                    await loadNews()
-                  }}
-                  className="text-red-500 hover:text-red-400"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            <p className="text-gray-400">{item.content}</p>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <button
+          onClick={() => router.push('/dashboard/news/api')}
+          className="flex flex-col items-center justify-center gap-4 p-8 bg-gray-800 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors text-left"
+        >
+          <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center">
+            <Newspaper className="h-8 w-8 text-blue-500" />
           </div>
-        ))}
+          <div>
+            <h3 className="text-lg font-medium mb-2">Nachrichten aus APIs</h3>
+            <p className="text-sm text-gray-400">
+              Nachrichten von verschiedenen Quellen wie Deutsche Welle, Focus, Tagesschau und mehr.
+            </p>
+          </div>
+        </button>
+
+        {/* Hier können später weitere Karten für andere Nachrichtenquellen hinzugefügt werden */}
       </div>
-
-      {/* Edit Modal */}
-      {isEditing && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium mb-4">
-              {currentNews ? 'Nachricht bearbeiten' : 'Neue Nachricht'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Titel</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Inhalt</label>
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-lg"
-                  rows={4}
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(false)
-                    setCurrentNews(null)
-                    setTitle('')
-                    setContent('')
-                  }}
-                  className="px-4 py-2 text-gray-400 hover:text-gray-300"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500/20"
-                >
-                  Speichern
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 } 
