@@ -749,14 +749,18 @@ function calculateAirQualityHealth(airQualityData: AirQualityData | null): AirQu
 }
 
 const loadApiData = async () => {
-  const response = await fetch('/api/weather/forecast/update');
-  if (!response.ok) {
-    throw new Error('Fehler beim Laden der API-Daten');
-  }
-  const data = await response.json();
+  const response = await fetch('/api/weather/forecast/update')
+  const data = await response.json()
   
-  // Konvertiere Array-Format in daily-Format
-  if (data.success && Array.isArray(data.data)) {
+  console.log('API Rohdaten:', data)
+  
+  if (!data?.success) {
+    throw new Error('Keine gültigen Daten in der API-Antwort')
+  }
+
+  // Überprüfe, ob die Daten als Array vorliegen
+  if (Array.isArray(data.data)) {
+    // Konvertiere Array-Format in daily-Format
     const formattedData = {
       success: true,
       data: {
@@ -771,13 +775,15 @@ const loadApiData = async () => {
           uv_index_max: data.data.map(d => d.uv_index_max),
           pressure_msl_mean: data.data.map(d => d.pressure_msl_mean)
         }
-      }
-    };
-    return formattedData;
+      },
+      last_updated: data.last_updated
+    }
+    return formattedData
   }
   
-  return data;
-};
+  // Falls die Daten bereits im korrekten Format vorliegen
+  return data
+}
 
 const loadDbData = async () => {
   const response = await fetch('/api/weather/forecast/current');
@@ -1113,12 +1119,13 @@ export default function WeatherPage() {
     try {
       const newSource = forecastDataSource === 'api' ? 'db' : 'api';
       console.log('Toggle Quelle zu:', newSource);
-      setForecastDataSource(newSource);
       
-      console.log('Lade Daten von:', newSource === 'api' ? '/api/weather/forecast/update' : '/api/weather/forecast/current');
       const data = await (newSource === 'api' 
         ? loadApiData()
-        : loadDbData()
+        : (async () => {
+            const response = await fetch('/api/weather/forecast/current');
+            return response.json();
+          })()
       );
       
       console.log('Rohdaten vom Server:', JSON.stringify(data, null, 2));
@@ -1150,6 +1157,7 @@ export default function WeatherPage() {
       
       console.log('Formatierte Daten:', JSON.stringify(formattedData, null, 2));
       setForecastData(formattedData);
+      setForecastDataSource(newSource);
       
       if (data.last_updated) {
         console.log('Setze letztes Update auf:', new Date(data.last_updated));
