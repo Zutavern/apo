@@ -1712,13 +1712,10 @@ export default function WeatherPage() {
         )}
       </div>
 
-      {/* Nacht-Modus Button */}
+      {/* Tag/Nacht Anzeige */}
       <div className="flex justify-end mt-6">
-        <button
-          onClick={() => setIsNightMode(!isNightMode)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700/50 transition-colors"
-        >
-          {isNightMode ? (
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg border border-gray-700">
+          {weatherData.current.is_day ? (
             <>
               <Sun className="h-5 w-5 text-yellow-500" />
               <span>Tag-Modus</span>
@@ -1729,7 +1726,7 @@ export default function WeatherPage() {
               <span>Nacht-Modus</span>
             </>
           )}
-        </button>
+        </div>
       </div>
     </div>
   )

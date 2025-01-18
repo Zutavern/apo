@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -81,29 +81,39 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [isSidebarOpen, setSidebarOpen] = useState(true)
+  const [isSidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
+  // Sidebar automatisch schließen bei Routenwechsel auf mobilen Geräten
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false)
+    }
+  }, [pathname])
+
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
-      {/* Mobile Sidebar Toggle */}
-      <button
-        onClick={() => setSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-gray-800 rounded-lg border border-gray-700"
-      >
-        {isSidebarOpen ? (
-          <X className="h-6 w-6 text-gray-400" />
-        ) : (
-          <Menu className="h-6 w-6 text-gray-400" />
-        )}
-      </button>
+    <div className="min-h-screen bg-gray-900 text-gray-100 lg:flex">
+      {/* Header mit Mobile Menu Toggle */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-gray-800 border-b border-gray-700 flex items-center lg:hidden z-40">
+        <button
+          onClick={() => setSidebarOpen(!isSidebarOpen)}
+          className="p-2 ml-4 bg-gray-800 rounded-lg border border-gray-700"
+        >
+          {isSidebarOpen ? (
+            <X className="h-6 w-6 text-gray-400" />
+          ) : (
+            <Menu className="h-6 w-6 text-gray-400" />
+          )}
+        </button>
+        <h1 className="text-xl font-bold ml-4">Dashboard</h1>
+      </div>
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-gray-800 border-r border-gray-700 transform transition-transform duration-200 ease-in-out ${
+        className={`fixed top-0 left-0 h-screen w-64 bg-gray-800 border-r border-gray-700 transform transition-transform duration-200 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        } lg:translate-x-0 z-30`}
       >
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
@@ -138,7 +148,7 @@ export default function DashboardLayout({
           </nav>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6">
+        <div className="p-6 border-t border-gray-700">
           <button
             onClick={async () => {
               await fetch('/api/auth/logout', { method: 'POST' })
@@ -153,12 +163,8 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <main
-        className={`transition-all duration-200 ${
-          isSidebarOpen ? 'lg:ml-64' : ''
-        }`}
-      >
-        <div className="p-8">{children}</div>
+      <main className="lg:pl-64 w-full min-h-screen">
+        <div className="p-8 lg:pt-8 pt-20">{children}</div>
       </main>
     </div>
   )
