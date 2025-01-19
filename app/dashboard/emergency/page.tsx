@@ -279,8 +279,7 @@ export default function EmergencyPage() {
                   </div>
                   <div className="flex items-start justify-end">
                     <div className="text-right">
-                      <span className="text-xs sm:text-sm text-gray-400">Entfernung</span>
-                      <p className="text-base sm:text-lg font-semibold text-white">{apotheke.entfernung} km</p>
+                      <p className={`${layoutType === 'triple' ? 'text-sm lg:text-base' : 'text-base sm:text-lg'} font-semibold text-white`}>{apotheke.entfernung}</p>
                     </div>
                   </div>
                 </div>
