@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud, Layout, LayoutGrid, Columns, Rows } from 'lucide-react'
+import { Cloud } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { PollenCard } from './components/cards/PollenCard'
 import { ForecastCard } from './components/cards/ForecastCard'
@@ -195,8 +195,6 @@ type ForecastData = {
     pressure_msl_mean: number[]
   }
 }
-
-type LayoutType = 'single' | 'double' | 'triple';
 
 const HOHENMOLSEN_COORDS = {
   latitude: 51.1667,
@@ -749,18 +747,14 @@ function calculateAirQualityHealth(airQualityData: AirQualityData | null): AirQu
 }
 
 const loadApiData = async () => {
-  const response = await fetch('/api/weather/forecast/update')
-  const data = await response.json()
-  
-  console.log('API Rohdaten:', data)
-  
-  if (!data?.success) {
-    throw new Error('Keine gültigen Daten in der API-Antwort')
+  const response = await fetch('/api/weather/forecast/update');
+  if (!response.ok) {
+    throw new Error('Fehler beim Laden der API-Daten');
   }
-
-  // Überprüfe, ob die Daten als Array vorliegen
-  if (Array.isArray(data.data)) {
-    // Konvertiere Array-Format in daily-Format
+  const data = await response.json();
+  
+  // Konvertiere Array-Format in daily-Format
+  if (data.success && Array.isArray(data.data)) {
     const formattedData = {
       success: true,
       data: {
@@ -775,15 +769,13 @@ const loadApiData = async () => {
           uv_index_max: data.data.map(d => d.uv_index_max),
           pressure_msl_mean: data.data.map(d => d.pressure_msl_mean)
         }
-      },
-      last_updated: data.last_updated
-    }
-    return formattedData
+      }
+    };
+    return formattedData;
   }
   
-  // Falls die Daten bereits im korrekten Format vorliegen
-  return data
-}
+  return data;
+};
 
 const loadDbData = async () => {
   const response = await fetch('/api/weather/forecast/current');
@@ -807,23 +799,6 @@ export default function WeatherPage() {
   const [weatherDataSource, setWeatherDataSource] = useState<'api' | 'db'>('db')
   const [pollenDataSource, setPollenDataSource] = useState<'api' | 'db'>('db')
   const [forecastDataSource, setForecastDataSource] = useState<'api' | 'db'>('db')
-
-  const [layoutType, setLayoutType] = useState<LayoutType>('double')
-
-  const handleLayoutToggle = () => {
-    setLayoutType(current => {
-      switch (current) {
-        case 'single':
-          return 'double'
-        case 'double':
-          return 'triple'
-        case 'triple':
-          return 'single'
-        default:
-          return 'double'
-      }
-    })
-  }
 
   const handleUpdate = async () => {
     try {
@@ -1119,13 +1094,12 @@ export default function WeatherPage() {
     try {
       const newSource = forecastDataSource === 'api' ? 'db' : 'api';
       console.log('Toggle Quelle zu:', newSource);
+      setForecastDataSource(newSource);
       
+      console.log('Lade Daten von:', newSource === 'api' ? '/api/weather/forecast/update' : '/api/weather/forecast/current');
       const data = await (newSource === 'api' 
         ? loadApiData()
-        : (async () => {
-            const response = await fetch('/api/weather/forecast/current');
-            return response.json();
-          })()
+        : loadDbData()
       );
       
       console.log('Rohdaten vom Server:', JSON.stringify(data, null, 2));
@@ -1157,7 +1131,6 @@ export default function WeatherPage() {
       
       console.log('Formatierte Daten:', JSON.stringify(formattedData, null, 2));
       setForecastData(formattedData);
-      setForecastDataSource(newSource);
       
       if (data.last_updated) {
         console.log('Setze letztes Update auf:', new Date(data.last_updated));
@@ -1313,37 +1286,16 @@ export default function WeatherPage() {
             })} Uhr
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-            onClick={handleLayoutToggle}
-          >
-            {layoutType === 'single' ? (
-              <Rows className="h-4 w-4 text-blue-500" />
-            ) : layoutType === 'double' ? (
-              <Columns className="h-4 w-4 text-blue-500" />
-            ) : (
-              <LayoutGrid className="h-4 w-4 text-blue-500" />
-            )}
-            <span>{layoutType === 'single' ? '1 Spalte' : layoutType === 'double' ? '2 Spalten' : '3 Spalten'}</span>
-          </button>
-          <button
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-            onClick={handleUpdate}
-            disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
-          >
-            <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
-            <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
-          </button>
-        </div>
+        <button
+          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+          onClick={handleUpdate}
+          disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
+        >
+          <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
+          <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
+        </button>
       </div>
-      <div className={`grid gap-4 ${
-        layoutType === 'single' 
-          ? 'grid-cols-1' 
-          : layoutType === 'double'
-          ? 'md:grid-cols-2'
-          : 'md:grid-cols-3'
-      }`}>
+      <div className="grid gap-4 md:grid-cols-2">
         <CurrentWeatherCard 
           weatherData={weatherData} 
           dataSource={weatherDataSource} 
@@ -1356,23 +1308,14 @@ export default function WeatherPage() {
           onSourceToggle={handlePollenSourceToggle}
           isLoading={isLoadingPollen}
         />
-        {layoutType === 'triple' ? (
-          <ForecastCard
-            forecastData={forecastData}
-            dataSource={forecastDataSource}
-            onSourceToggle={handleForecastSourceToggle}
-            isLoading={isLoadingForecast}
-          />
-        ) : (
-          <div className={`${layoutType === 'single' ? 'col-span-1' : 'col-span-2'}`}>
-            <ForecastCard
-              forecastData={forecastData}
-              dataSource={forecastDataSource}
-              onSourceToggle={handleForecastSourceToggle}
-              isLoading={isLoadingForecast}
-            />
-          </div>
-        )}
+      </div>
+      <div className="mt-4">
+        <ForecastCard
+          forecastData={forecastData}
+          dataSource={forecastDataSource}
+          onSourceToggle={handleForecastSourceToggle}
+          isLoading={isLoadingForecast}
+        />
       </div>
     </div>
   )

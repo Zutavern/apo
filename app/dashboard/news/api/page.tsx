@@ -8,8 +8,10 @@ import {
   Search, 
   Calendar, 
   Filter, 
-  ChevronRight 
+  ChevronRight,
+  Database 
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 type MediaStackNews = {
   title: string
@@ -85,6 +87,53 @@ export default function NewsApiPage() {
     { value: 'gala', label: 'Gala' }
   ]
 
+  // Funktion zum Laden der Daten aus Supabase
+  const loadNewsFromSupabase = async () => {
+    setIsLoading(true)
+    try {
+      let query = supabase
+        .from('api_news')
+        .select('*', { count: 'exact' })
+        .order('published_at', { ascending: false })
+
+      // Kategorie Filter
+      if (selectedCategory !== 'general') {
+        query = query.eq('category', selectedCategory)
+      }
+
+      // Quellen Filter
+      const selectedSources = []
+      if (selectedMainSource !== 'all') selectedSources.push(selectedMainSource)
+      if (selectedRegionalSource !== 'all') selectedSources.push(selectedRegionalSource)
+      if (selectedSpecialSource !== 'all') selectedSources.push(selectedSpecialSource)
+      
+      if (selectedSources.length > 0) {
+        query = query.in('source', selectedSources)
+      }
+
+      const { data, error, count } = await query
+
+      if (error) {
+        console.error('Fehler beim Laden der News aus Supabase:', error)
+        return
+      }
+
+      if (data) {
+        setApiNews(data)
+        setTotalResults(count || data.length)
+        setCurrentPage(1)
+        
+        // Extrahiere alle verfügbaren Quellen für den Filter
+        const availableSources = Array.from(new Set(data.map(item => item.source)))
+        setSourceFilter([]) // Reset source filter
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der News aus Supabase:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const fetchNews = async () => {
     setIsLoading(true)
     try {
@@ -116,9 +165,66 @@ export default function NewsApiPage() {
       const data = await response.json()
 
       if (data.data) {
-        setApiNews(data.data)
-        setTotalResults(data.pagination.total)
-        setCurrentPage(1)
+        // Daten für Supabase vorbereiten
+        const newsItems = data.data.map((item: MediaStackNews) => ({
+          title: item.title?.trim() || 'Kein Titel',
+          description: item.description?.trim() || null,
+          url: item.url?.trim() || '',
+          image: item.image?.trim() || null,
+          source: item.source?.trim() || 'Unbekannte Quelle',
+          category: item.category?.trim() || selectedCategory || 'general',
+          published_at: new Date(item.published_at).toISOString(),
+          copy: false
+        }))
+
+        // Filtere ungültige Einträge
+        const validNewsItems = newsItems.filter(item => 
+          item.url && 
+          item.url.length > 0 && 
+          item.title && 
+          item.title.length > 0 &&
+          item.title !== 'Kein Titel'
+        )
+
+        console.log('Bereite vor zum Speichern:', {
+          beispielItem: validNewsItems[0],
+          anzahlItems: validNewsItems.length,
+          ungültigeItems: newsItems.length - validNewsItems.length
+        })
+
+        if (validNewsItems.length === 0) {
+          console.error('Keine gültigen News-Items zum Speichern gefunden')
+          return
+        }
+
+        try {
+          // Speichere die Daten in Batches von 50 Items
+          const batchSize = 50
+          for (let i = 0; i < validNewsItems.length; i += batchSize) {
+            const batch = validNewsItems.slice(i, i + batchSize)
+            const { error } = await supabase
+              .from('api_news')
+              .upsert(batch, {
+                onConflict: 'url',
+                ignoreDuplicates: true
+              })
+
+            if (error) {
+              console.error('Fehler beim Speichern von Batch', i / batchSize + 1, ':', error)
+            } else {
+              console.log('Batch', i / batchSize + 1, 'erfolgreich gespeichert:', {
+                start: i + 1,
+                end: Math.min(i + batchSize, validNewsItems.length),
+                total: validNewsItems.length
+              })
+            }
+          }
+
+          // Lade die Daten aus Supabase nach erfolgreichem Speichern
+          await loadNewsFromSupabase()
+        } catch (error) {
+          console.error('Fehler beim Speichervorgang:', error)
+        }
       }
 
       // Nach erfolgreichem Abruf die API-Nutzung aktualisieren
@@ -147,17 +253,22 @@ export default function NewsApiPage() {
     }
   }
 
-  // API-Nutzung beim Laden der Seite prüfen
+  // Effekt für initiales Laden und bei Änderung der Filter
+  useEffect(() => {
+    loadNewsFromSupabase()
+  }, [selectedCategory, selectedMainSource, selectedRegionalSource, selectedSpecialSource])
+
+  // Effekt für API-Nutzung beim ersten Laden
   useEffect(() => {
     checkApiUsage()
   }, [])
 
-  // Filterfunktionen
+  // Angepasste Filterfunktion für Supabase-Daten
   const filterNews = (news: MediaStackNews[]) => {
     return news.filter(item => {
       // Textsuche
       if (searchTerm && !item.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-          !item.description.toLowerCase().includes(searchTerm.toLowerCase())) {
+          !(item.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())) {
         return false
       }
 
@@ -187,6 +298,75 @@ export default function NewsApiPage() {
     const start = (currentPage - 1) * itemsPerPage
     const end = start + itemsPerPage
     return filtered.slice(start, end)
+  }
+
+  // Funktion zum Kopieren/Löschen einer Nachricht in der news Tabelle
+  const toggleNews = async (item: MediaStackNews) => {
+    try {
+      if (!item.copy) {
+        // Kopiere in news Tabelle
+        const { error: insertError } = await supabase
+          .from('news')
+          .insert({
+            title: item.title,
+            description: item.description,
+            url: item.url,
+            image: item.image,
+            source: item.source,
+            category: item.category,
+            published_at: item.published_at
+          })
+
+        if (insertError) {
+          console.error('Fehler beim Kopieren der Nachricht:', insertError)
+          return
+        }
+
+        // Setze copy Flag in api_news auf true
+        const { error: updateError } = await supabase
+          .from('api_news')
+          .update({ copy: true })
+          .eq('url', item.url)
+
+        if (updateError) {
+          console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
+          return
+        }
+      } else {
+        // Lösche aus news Tabelle
+        const { error: deleteError } = await supabase
+          .from('news')
+          .delete()
+          .eq('url', item.url)
+
+        if (deleteError) {
+          console.error('Fehler beim Löschen der Nachricht:', deleteError)
+          return
+        }
+
+        // Setze copy Flag in api_news auf false
+        const { error: updateError } = await supabase
+          .from('api_news')
+          .update({ copy: false })
+          .eq('url', item.url)
+
+        if (updateError) {
+          console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
+          return
+        }
+      }
+
+      // Aktualisiere die UI
+      setApiNews(prevNews => 
+        prevNews.map(news => 
+          news.url === item.url 
+            ? { ...news, copy: !news.copy }
+            : news
+        )
+      )
+    } catch (error) {
+      console.error('Fehler beim Verarbeiten der Nachricht:', error)
+    }
   }
 
   return (
@@ -341,10 +521,14 @@ export default function NewsApiPage() {
             {isLoading ? (
               <span>Lade Ergebnisse...</span>
             ) : (
-              <span>
-                Zeige {Math.min((currentPage - 1) * itemsPerPage + 1, totalResults)}-
-                {Math.min(currentPage * itemsPerPage, totalResults)} von {totalResults} Ergebnissen
-              </span>
+              apiNews.length > 0 ? (
+                <span>
+                  Zeige {Math.min((currentPage - 1) * itemsPerPage + 1, totalResults)}-
+                  {Math.min(currentPage * itemsPerPage, totalResults)} von {totalResults} Ergebnissen
+                </span>
+              ) : (
+                <span>Keine Nachrichten gefunden</span>
+              )
             )}
           </div>
         </>
@@ -391,15 +575,28 @@ export default function NewsApiPage() {
                 <p className="text-gray-400 text-sm mb-4 line-clamp-3">
                   {item.description}
                 </p>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-blue-500 hover:text-blue-400"
-                >
-                  Weiterlesen
-                  <ChevronRight className="h-4 w-4" />
-                </a>
+                <div className="flex items-center justify-between">
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-blue-500 hover:text-blue-400"
+                  >
+                    Weiterlesen
+                    <ChevronRight className="h-4 w-4" />
+                  </a>
+                  <button
+                    onClick={() => toggleNews(item)}
+                    className={`${
+                      item.copy 
+                        ? 'text-blue-500 hover:text-blue-400' 
+                        : 'text-gray-400 hover:text-gray-300'
+                    }`}
+                    title={item.copy ? 'Aus News entfernen' : 'In News kopieren'}
+                  >
+                    <Database className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
