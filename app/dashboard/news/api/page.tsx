@@ -300,10 +300,33 @@ export default function NewsApiPage() {
     return filtered.slice(start, end)
   }
 
+  // Funktion zum Prüfen, ob ein Artikel bereits in der news Tabelle existiert
+  const checkArticleExists = async (url: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('news')
+        .select('url')
+        .eq('url', url)
+
+      if (error) {
+        console.error('Fehler beim Prüfen des Artikels:', error.message)
+        return false
+      }
+
+      return data && data.length > 0
+    } catch (error) {
+      console.error('Unerwarteter Fehler beim Prüfen des Artikels:', error)
+      return false
+    }
+  }
+
   // Funktion zum Kopieren/Löschen einer Nachricht in der news Tabelle
   const toggleNews = async (item: MediaStackNews) => {
     try {
-      if (!item.copy) {
+      const exists = await checkArticleExists(item.url)
+      console.log('Artikel Status:', exists ? 'Existiert bereits' : 'Neu')
+
+      if (!exists) {
         // Kopiere in news Tabelle
         const { error: insertError } = await supabase
           .from('news')
@@ -318,20 +341,11 @@ export default function NewsApiPage() {
           })
 
         if (insertError) {
-          console.error('Fehler beim Kopieren der Nachricht:', insertError)
+          console.error('Fehler beim Kopieren der Nachricht:', insertError.message)
           return
         }
 
-        // Setze copy Flag in api_news auf true
-        const { error: updateError } = await supabase
-          .from('api_news')
-          .update({ copy: true })
-          .eq('url', item.url)
-
-        if (updateError) {
-          console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
-          return
-        }
+        console.log('Artikel erfolgreich kopiert')
       } else {
         // Lösche aus news Tabelle
         const { error: deleteError } = await supabase
@@ -340,27 +354,18 @@ export default function NewsApiPage() {
           .eq('url', item.url)
 
         if (deleteError) {
-          console.error('Fehler beim Löschen der Nachricht:', deleteError)
+          console.error('Fehler beim Löschen der Nachricht:', deleteError.message)
           return
         }
 
-        // Setze copy Flag in api_news auf false
-        const { error: updateError } = await supabase
-          .from('api_news')
-          .update({ copy: false })
-          .eq('url', item.url)
-
-        if (updateError) {
-          console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
-          return
-        }
+        console.log('Artikel erfolgreich gelöscht')
       }
 
       // Aktualisiere die UI
       setApiNews(prevNews => 
         prevNews.map(news => 
           news.url === item.url 
-            ? { ...news, copy: !news.copy }
+            ? { ...news, copy: !exists }
             : news
         )
       )
@@ -368,6 +373,37 @@ export default function NewsApiPage() {
       console.error('Fehler beim Verarbeiten der Nachricht:', error)
     }
   }
+
+  // Effekt zum Laden des initialen Status der Artikel
+  useEffect(() => {
+    const loadArticleStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('news')
+          .select('url')
+
+        if (error) {
+          console.error('Fehler beim Laden der Artikel-Status:', error)
+          return
+        }
+
+        const copiedUrls = new Set(data.map(item => item.url))
+        
+        setApiNews(prevNews => 
+          prevNews.map(news => ({
+            ...news,
+            copy: copiedUrls.has(news.url)
+          }))
+        )
+      } catch (error) {
+        console.error('Fehler beim Laden der Artikel-Status:', error)
+      }
+    }
+
+    if (apiNews.length > 0) {
+      loadArticleStatus()
+    }
+  }, [apiNews.length])
 
   return (
     <div className="container mx-auto px-4">
@@ -614,30 +650,68 @@ export default function NewsApiPage() {
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
             className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={currentPage === 1 ? "Erste Seite" : `Zurück zu Seite ${currentPage - 1}`}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
 
           <div className="flex items-center gap-2">
-            {Array.from({ length: Math.ceil(filterNews(apiNews).length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-lg ${
-                  currentPage === page
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            {(() => {
+              const totalPages = Math.ceil(filterNews(apiNews).length / itemsPerPage)
+              const pages = []
+              
+              // Immer Seite 1 anzeigen
+              if (totalPages > 0) {
+                pages.push(1)
+              }
+              
+              // Ellipsis vor der aktuellen Seite
+              if (currentPage > 4) {
+                pages.push('...')
+              }
+              
+              // Seiten um die aktuelle Seite
+              for (let i = Math.max(2, currentPage - 2); i <= Math.min(totalPages - 1, currentPage + 2); i++) {
+                pages.push(i)
+              }
+              
+              // Ellipsis nach der aktuellen Seite
+              if (currentPage < totalPages - 3) {
+                pages.push('...')
+              }
+              
+              // Immer letzte Seite anzeigen
+              if (totalPages > 1) {
+                pages.push(totalPages)
+              }
+              
+              return pages.map((page, index) => (
+                typeof page === 'number' ? (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentPage(page)}
+                    className={`min-w-[2rem] h-8 rounded-lg ${
+                      currentPage === page
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ) : (
+                  <span key={index} className="text-gray-600">
+                    {page}
+                  </span>
+                )
+              ))
+            })()}
           </div>
 
           <button
             onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filterNews(apiNews).length / itemsPerPage), prev + 1))}
             disabled={currentPage === Math.ceil(filterNews(apiNews).length / itemsPerPage)}
             className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={currentPage === Math.ceil(filterNews(apiNews).length / itemsPerPage) ? "Letzte Seite" : `Weiter zu Seite ${currentPage + 1}`}
           >
             <ChevronRight className="h-5 w-5" />
           </button>
