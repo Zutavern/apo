@@ -42,23 +42,29 @@ export async function GET(request: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
       },
       body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
         client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID!,
         client_secret: process.env.CANVA_CLIENT_SECRET!,
-        code,
-        grant_type: 'authorization_code',
-        code_verifier: codeVerifier.value,
-      }),
-    })
+        code_verifier: codeVerifier?.value || '',
+        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
+      }).toString()
+    });
 
-    const tokenData = await tokenResponse.json()
-    console.log('Token Response Status:', tokenResponse.status)
-    console.log('Token Data:', JSON.stringify(tokenData, null, 2))
+    console.log('Token Response Status:', tokenResponse.status);
+    const responseText = await tokenResponse.text();
+    console.log('Token Response Body:', responseText);
 
-    if (!tokenResponse.ok) {
-      console.error('Token exchange failed:', tokenData)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed`)
+    let tokenData;
+    try {
+      tokenData = JSON.parse(responseText);
+      console.log('Parsed Token Data:', tokenData);
+    } catch (error) {
+      console.error('Error parsing token response:', error);
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed`);
     }
 
     // Token in einem sicheren Cookie speichern
