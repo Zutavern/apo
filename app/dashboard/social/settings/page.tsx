@@ -88,35 +88,40 @@ export default function SocialSettings() {
     })
   }
 
+  // Canva verbinden
+  const connectCanva = async () => {
+    if (canvaConnection.connected) {
+      // Trennen
+      const response = await fetch('/api/auth/canva/disconnect', {
+        method: 'POST'
+      })
+      
+      if (response.ok) {
+        setCanvaConnection({ connected: false })
+      }
+    } else {
+      // Verbinden
+      window.location.href = '/api/auth/canva'
+    }
+  }
+
   // Canva Verbindungsstatus beim Laden prüfen
   useEffect(() => {
     const checkCanvaConnection = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const success = urlParams.get('success');
       const error = urlParams.get('error');
-      const status = urlParams.get('status');
       const details = urlParams.get('details');
-
-      console.log('Debug - URL Parameters:', {
-        success,
-        error,
-        status,
-        details: details ? decodeURIComponent(details) : undefined
-      });
 
       if (success === 'true') {
         setCanvaConnection({ connected: true });
-        console.log('Canva successfully connected');
       } else if (error) {
-        console.error('Canva connection error:', {
-          error,
-          status,
-          details: details ? decodeURIComponent(details) : undefined
-        });
-        
         let errorMessage = 'Ein Fehler ist aufgetreten.';
         
         switch(error) {
+          case 'auth_failed':
+            errorMessage = 'Die Authentifizierung mit Canva ist fehlgeschlagen.';
+            break;
           case 'no_code':
             errorMessage = 'Kein Autorisierungscode von Canva erhalten.';
             break;
@@ -124,30 +129,12 @@ export default function SocialSettings() {
             errorMessage = 'Sicherheitstoken nicht gefunden. Bitte versuchen Sie es erneut.';
             break;
           case 'token_exchange_failed':
-            errorMessage = `Token-Austausch fehlgeschlagen${status ? ` (Status: ${status})` : ''}.${details ? `\nDetails: ${decodeURIComponent(details)}` : ''}`;
-            break;
-          case 'invalid_response':
-            // Prüfe auf Cloudflare-Schutzseite
-            if (details?.includes('Just a moment...')) {
-              errorMessage = 'Die Verbindung zu Canva wurde temporär blockiert. Bitte warten Sie einen Moment und versuchen Sie es dann erneut.';
-            } else {
-              errorMessage = `Ungültige Antwort vom Server erhalten${status ? ` (Status: ${status})` : ''}.${details ? `\n${decodeURIComponent(details)}` : ''}`;
-            }
-            break;
-          case 'invalid_token_response':
-            errorMessage = 'Ungültige Antwort von Canva erhalten.';
-            break;
-          case 'no_access_token':
-            errorMessage = 'Kein Zugriffstoken von Canva erhalten.';
-            break;
-          case 'token_exchange_error':
-            errorMessage = `Ein unerwarteter Fehler ist aufgetreten${details ? `:\n${decodeURIComponent(details)}` : ''}.`;
+            errorMessage = `Token-Austausch fehlgeschlagen.${details ? `\n${decodeURIComponent(details)}` : ''}`;
             break;
           default:
-            errorMessage = `Ein unbekannter Fehler ist aufgetreten: ${error}${details ? `\nDetails: ${decodeURIComponent(details)}` : ''}`;
+            errorMessage = `Ein unbekannter Fehler ist aufgetreten: ${error}${details ? `\n${decodeURIComponent(details)}` : ''}`;
         }
         
-        console.error('Showing error message:', errorMessage);
         alert(errorMessage);
         setCanvaConnection({ connected: false });
       }
@@ -175,56 +162,6 @@ export default function SocialSettings() {
       .replace(/\//g, '_')
       .replace(/=/g, '');
     return base64Url;
-  };
-
-  // Canva verbinden
-  const connectCanva = async () => {
-    const clientId = process.env.NEXT_PUBLIC_CANVA_CLIENT_ID;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-
-    // Überprüfe ob die notwendigen Umgebungsvariablen verfügbar sind
-    if (!clientId || !appUrl) {
-      console.error('Fehlende Umgebungsvariablen:', {
-        clientId: clientId ? 'vorhanden' : 'fehlt',
-        appUrl: appUrl ? 'vorhanden' : 'fehlt'
-      });
-      alert('Konfigurationsfehler: Bitte kontaktieren Sie den Administrator.');
-      return;
-    }
-
-    if (canvaConnection.connected) {
-      setCanvaConnection({ connected: false });
-      document.cookie = 'canva_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      return;
-    }
-
-    try {
-      const codeVerifier = generateRandomString(64);
-      console.log('Generated Code Verifier:', codeVerifier);
-      
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-      console.log('Generated Code Challenge:', codeChallenge);
-      
-      document.cookie = `canva_code_verifier=${codeVerifier}; path=/; secure; samesite=lax`;
-      console.log('Stored Code Verifier in Cookie');
-
-      const params = new URLSearchParams({
-        code_challenge_method: 's256',
-        response_type: 'code',
-        client_id: clientId,
-        redirect_uri: `${appUrl}/api/auth/canva/callback`,
-        scope: 'app:read design:content:read design:meta:read asset:read brandtemplate:meta:read brandtemplate:content:read',
-        code_challenge: codeChallenge
-      });
-
-      const authUrl = `https://www.canva.com/api/oauth/authorize?${params.toString()}`;
-      console.log('Generated Auth URL:', authUrl);
-
-      window.location.href = authUrl;
-    } catch (error) {
-      console.error('Fehler beim Generieren der Auth URL:', error);
-      alert('Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.');
-    }
   };
 
   const handleLayoutToggle = () => {

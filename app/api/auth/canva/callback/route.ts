@@ -1,7 +1,13 @@
 export const runtime = 'edge'
 
-import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { CanvaService } from '@/lib/services/canva'
+
+const canvaService = new CanvaService({
+  clientId: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID!,
+  clientSecret: process.env.CANVA_CLIENT_SECRET!,
+  redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
+})
 
 export async function GET(request: Request) {
   try {
@@ -54,74 +60,15 @@ export async function GET(request: Request) {
     }
 
     console.log('Debug - Token Request Start')
-    const tokenResponse = await fetch('https://www.canva.com/api/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Origin': 'https://neueapotheke.vercel.app',
-        'Referer': 'https://neueapotheke.vercel.app/',
-        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      cache: 'no-store',
-      credentials: 'omit',
-      redirect: 'follow',
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID!,
-        client_secret: process.env.CANVA_CLIENT_SECRET!,
-        code_verifier: codeVerifier.value,
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
-      })
-    })
-
-    console.log('Debug - Token Response:', {
-      status: tokenResponse.status,
-      ok: tokenResponse.ok,
-      headers: Object.fromEntries(tokenResponse.headers)
-    })
-
-    // Prüfe den Content-Type
-    const contentType = tokenResponse.headers.get('content-type')
-    console.log('Debug - Content-Type:', contentType)
-
-    let data
-    const responseText = await tokenResponse.text()
-    console.log('Debug - Raw Response:', responseText.substring(0, 200))
-
-    try {
-      data = JSON.parse(responseText)
-    } catch (parseError) {
-      console.log('Debug - JSON Parse Error:', parseError)
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=invalid_response&status=${tokenResponse.status}&details=${encodeURIComponent(`Ungültige Antwort vom Server (${contentType}): ${responseText.substring(0, 100)}...`)}`
-        }
-      })
-    }
+    const tokenData = await canvaService.exchangeCodeForToken(code, codeVerifier.value)
 
     console.log('Debug - Token Data:', {
-      hasAccessToken: !!data.access_token,
-      error: data.error,
-      errorDescription: data.error_description
+      hasAccessToken: !!tokenData.access_token,
+      error: tokenData.error,
+      errorDescription: tokenData.error_description
     })
 
-    if (!tokenResponse.ok) {
-      console.log('Debug - Token Exchange Failed:', data)
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed&status=${tokenResponse.status}&details=${encodeURIComponent(JSON.stringify(data))}`
-        }
-      })
-    }
-
-    if (!data.access_token) {
+    if (!tokenData.access_token) {
       console.log('Debug - No Access Token in Response')
       return new Response(null, {
         status: 302,
@@ -140,15 +87,17 @@ export async function GET(request: Request) {
     })
 
     // Cookie setzen
-    response.headers.append('Set-Cookie', `canva_access_token=${data.access_token}; Path=/; HttpOnly; Secure; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `canva_access_token=${tokenData.access_token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`) // 30 Tage
 
     return response
   } catch (error) {
-    console.log('Debug - Unexpected Error:', error)
+    console.error('Canva callback error:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_error&details=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`
+        Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed&details=${encodeURIComponent(errorMessage)}`
       }
     })
   }
