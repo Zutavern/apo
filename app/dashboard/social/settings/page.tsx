@@ -126,6 +126,9 @@ export default function SocialSettings() {
           case 'token_exchange_failed':
             errorMessage = `Token-Austausch fehlgeschlagen${status ? ` (Status: ${status})` : ''}.${details ? `\nDetails: ${decodeURIComponent(details)}` : ''}`;
             break;
+          case 'invalid_response':
+            errorMessage = `Ungültige Antwort vom Server erhalten${status ? ` (Status: ${status})` : ''}.${details ? `\n${decodeURIComponent(details)}` : ''}`;
+            break;
           case 'invalid_token_response':
             errorMessage = 'Ungültige Antwort von Canva erhalten.';
             break;

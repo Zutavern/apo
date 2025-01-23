@@ -76,7 +76,26 @@ export async function GET(request: Request) {
       headers: Object.fromEntries(tokenResponse.headers)
     })
 
-    const data = await tokenResponse.json()
+    // Prüfe den Content-Type
+    const contentType = tokenResponse.headers.get('content-type')
+    console.log('Debug - Content-Type:', contentType)
+
+    let data
+    const responseText = await tokenResponse.text()
+    console.log('Debug - Raw Response:', responseText.substring(0, 200))
+
+    try {
+      data = JSON.parse(responseText)
+    } catch (parseError) {
+      console.log('Debug - JSON Parse Error:', parseError)
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=invalid_response&status=${tokenResponse.status}&details=${encodeURIComponent(`Ungültige Antwort vom Server (${contentType}): ${responseText.substring(0, 100)}...`)}`
+        }
+      })
+    }
+
     console.log('Debug - Token Data:', {
       hasAccessToken: !!data.access_token,
       error: data.error,
