@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
-  console.log('Callback aufgerufen mit URL:', request.url)
+  console.log('=== Canva Callback Start ===')
+  console.log('Callback URL:', request.url)
   
-  const { searchParams } = new URL(request.url)
+  const url = new URL(request.url)
+  const searchParams = url.searchParams
   console.log('Search Params:', Object.fromEntries(searchParams))
   
   const code = searchParams.get('code')
@@ -15,12 +17,12 @@ export async function GET(request: Request) {
 
   // Fehlerbehandlung
   if (error) {
-    console.error('Canva OAuth Error:', error)
+    console.error('OAuth Error:', error)
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=${error}`)
   }
 
   if (!code) {
-    console.error('No code received from Canva')
+    console.error('No code received')
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=no_code`)
   }
 
@@ -36,7 +38,6 @@ export async function GET(request: Request) {
 
   try {
     console.log('Starting token exchange...')
-    // Token Exchange durchführen
     const tokenResponse = await fetch('https://www.canva.com/api/oauth/token', {
       method: 'POST',
       headers: {
@@ -48,31 +49,29 @@ export async function GET(request: Request) {
         code,
         grant_type: 'authorization_code',
         code_verifier: codeVerifier.value,
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`,
-      }).toString(),
+      }),
     })
 
+    const tokenData = await tokenResponse.json()
+    console.log('Token Response Status:', tokenResponse.status)
+    console.log('Token Data:', JSON.stringify(tokenData, null, 2))
+
     if (!tokenResponse.ok) {
-      const error = await tokenResponse.text()
-      console.error('Token exchange failed:', error)
+      console.error('Token exchange failed:', tokenData)
       return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed`)
     }
 
-    const tokenData = await tokenResponse.json()
-    console.log('Token exchange successful')
-
     // Token in einem sicheren Cookie speichern
     cookieStore.set('canva_access_token', tokenData.access_token, {
-      httpOnly: true,
       secure: true,
+      httpOnly: true,
       sameSite: 'lax',
-      path: '/',
     })
 
-    // Erfolgreiche Verbindung
+    console.log('=== Canva Callback Success ===')
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?success=true`)
   } catch (error) {
-    console.error('Error during token exchange:', error)
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=unexpected_error`)
+    console.error('Token exchange error:', error)
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_error`)
   }
 } 
