@@ -94,11 +94,34 @@ export default function SocialSettings() {
       const urlParams = new URLSearchParams(window.location.search);
       const success = urlParams.get('success');
       const error = urlParams.get('error');
+      const status = urlParams.get('status');
 
       if (success === 'true') {
         setCanvaConnection({ connected: true });
+        console.log('Canva successfully connected');
       } else if (error) {
-        console.error('Canva connection error:', error);
+        console.error('Canva connection error:', error, status ? `(Status: ${status})` : '');
+        let errorMessage = 'Ein Fehler ist aufgetreten.';
+        
+        switch(error) {
+          case 'no_code':
+            errorMessage = 'Kein Autorisierungscode von Canva erhalten.';
+            break;
+          case 'no_verifier':
+            errorMessage = 'Sicherheitstoken nicht gefunden. Bitte versuchen Sie es erneut.';
+            break;
+          case 'token_exchange_failed':
+            errorMessage = `Token-Austausch fehlgeschlagen${status ? ` (Status: ${status})` : ''}.`;
+            break;
+          case 'invalid_token_response':
+            errorMessage = 'Ungültige Antwort von Canva erhalten.';
+            break;
+          case 'no_access_token':
+            errorMessage = 'Kein Zugriffstoken von Canva erhalten.';
+            break;
+        }
+        
+        alert(errorMessage);
         setCanvaConnection({ connected: false });
       }
     };
