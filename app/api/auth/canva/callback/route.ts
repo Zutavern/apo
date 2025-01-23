@@ -1,6 +1,7 @@
 export const runtime = 'edge'
 
 import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { CanvaService } from '@/lib/services/canva'
 
 const canvaService = new CanvaService({
@@ -8,6 +9,11 @@ const canvaService = new CanvaService({
   clientSecret: process.env.CANVA_CLIENT_SECRET!,
   redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
 })
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function GET(request: Request) {
   try {
@@ -41,6 +47,7 @@ export async function GET(request: Request) {
       })
     }
 
+    // Code Verifier aus Cookie holen
     const cookieStore = cookies()
     const codeVerifier = cookieStore.get('canva_code_verifier')
 
@@ -55,6 +62,27 @@ export async function GET(request: Request) {
         status: 302,
         headers: {
           Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=no_verifier`
+        }
+      })
+    }
+
+    // Hole den aktuellen Benutzer
+    const sessionCookie = cookieStore.get('sb-access-token')
+    if (!sessionCookie) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=not_authenticated`
+        }
+      })
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(sessionCookie.value)
+    if (userError || !user) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=not_authenticated`
         }
       })
     }
@@ -78,18 +106,16 @@ export async function GET(request: Request) {
       })
     }
 
-    console.log('Debug - Success, Setting Cookie')
-    const response = new Response(null, {
+    // Token in der Datenbank speichern
+    await canvaService.saveToken(user.id, tokenData)
+
+    console.log('Debug - Success, Token Saved')
+    return new Response(null, {
       status: 302,
       headers: {
         Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?success=true`
       }
     })
-
-    // Cookie setzen
-    response.headers.append('Set-Cookie', `canva_access_token=${tokenData.access_token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`) // 30 Tage
-
-    return response
   } catch (error) {
     console.error('Canva callback error:', error)
     const errorMessage = error instanceof Error ? error.message : String(error)

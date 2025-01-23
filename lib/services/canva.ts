@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
 interface CanvaAuthConfig {
   clientId: string
@@ -6,11 +7,26 @@ interface CanvaAuthConfig {
   redirectUri: string
 }
 
+interface CanvaToken {
+  id: string
+  user_id: string
+  access_token: string
+  refresh_token?: string
+  expires_at?: string
+  created_at: string
+  updated_at: string
+}
+
 export class CanvaService {
   private config: CanvaAuthConfig
+  private supabase
 
   constructor(config: CanvaAuthConfig) {
     this.config = config
+    this.supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   }
 
   /**
@@ -87,6 +103,50 @@ export class CanvaService {
     }
 
     return response.json()
+  }
+
+  /**
+   * Speichert das Token in der Datenbank
+   */
+  async saveToken(userId: string, tokenData: any): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('canva_tokens')
+      .upsert({
+        user_id: userId,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: tokenData.expires_in 
+          ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+          : null
+      })
+
+    if (error) throw error
+  }
+
+  /**
+   * Holt das Token aus der Datenbank
+   */
+  async getToken(userId: string): Promise<CanvaToken | null> {
+    const { data, error } = await this.supabase
+      .from('canva_tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  /**
+   * Löscht das Token aus der Datenbank
+   */
+  async deleteToken(userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('canva_tokens')
+      .delete()
+      .eq('user_id', userId)
+
+    if (error) throw error
   }
 
   /**
