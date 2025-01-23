@@ -97,6 +97,13 @@ export default function SocialSettings() {
       const status = urlParams.get('status');
       const details = urlParams.get('details');
 
+      console.log('Debug - URL Parameters:', {
+        success,
+        error,
+        status,
+        details: details ? decodeURIComponent(details) : undefined
+      });
+
       if (success === 'true') {
         setCanvaConnection({ connected: true });
         console.log('Canva successfully connected');
@@ -117,7 +124,7 @@ export default function SocialSettings() {
             errorMessage = 'Sicherheitstoken nicht gefunden. Bitte versuchen Sie es erneut.';
             break;
           case 'token_exchange_failed':
-            errorMessage = `Token-Austausch fehlgeschlagen (Status: ${status})\n${details ? decodeURIComponent(details) : ''}`;
+            errorMessage = `Token-Austausch fehlgeschlagen${status ? ` (Status: ${status})` : ''}.${details ? `\nDetails: ${decodeURIComponent(details)}` : ''}`;
             break;
           case 'invalid_token_response':
             errorMessage = 'Ungültige Antwort von Canva erhalten.';
@@ -125,8 +132,14 @@ export default function SocialSettings() {
           case 'no_access_token':
             errorMessage = 'Kein Zugriffstoken von Canva erhalten.';
             break;
+          case 'token_exchange_error':
+            errorMessage = `Ein unerwarteter Fehler ist aufgetreten${details ? `:\n${decodeURIComponent(details)}` : ''}.`;
+            break;
+          default:
+            errorMessage = `Ein unbekannter Fehler ist aufgetreten: ${error}${details ? `\nDetails: ${decodeURIComponent(details)}` : ''}`;
         }
         
+        console.error('Showing error message:', errorMessage);
         alert(errorMessage);
         setCanvaConnection({ connected: false });
       }

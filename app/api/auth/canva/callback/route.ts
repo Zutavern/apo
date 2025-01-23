@@ -9,7 +9,14 @@ export async function GET(request: Request) {
     const code = url.searchParams.get('code')
     const error = url.searchParams.get('error')
 
+    console.log('Debug - Callback Start:', {
+      code: code?.substring(0, 20) + '...',
+      error,
+      url: request.url
+    })
+
     if (error) {
+      console.log('Debug - OAuth Error:', error)
       return new Response(null, {
         status: 302,
         headers: {
@@ -19,6 +26,7 @@ export async function GET(request: Request) {
     }
 
     if (!code) {
+      console.log('Debug - No Code Received')
       return new Response(null, {
         status: 302,
         headers: {
@@ -30,7 +38,13 @@ export async function GET(request: Request) {
     const cookieStore = cookies()
     const codeVerifier = cookieStore.get('canva_code_verifier')
 
+    console.log('Debug - Code Verifier:', {
+      exists: !!codeVerifier,
+      value: codeVerifier?.value?.substring(0, 10) + '...'
+    })
+
     if (!codeVerifier) {
+      console.log('Debug - No Code Verifier Found')
       return new Response(null, {
         status: 302,
         headers: {
@@ -39,6 +53,7 @@ export async function GET(request: Request) {
       })
     }
 
+    console.log('Debug - Token Request Start')
     const tokenResponse = await fetch('https://www.canva.com/api/oauth/token', {
       method: 'POST',
       headers: {
@@ -55,9 +70,21 @@ export async function GET(request: Request) {
       })
     })
 
+    console.log('Debug - Token Response:', {
+      status: tokenResponse.status,
+      ok: tokenResponse.ok,
+      headers: Object.fromEntries(tokenResponse.headers)
+    })
+
     const data = await tokenResponse.json()
+    console.log('Debug - Token Data:', {
+      hasAccessToken: !!data.access_token,
+      error: data.error,
+      errorDescription: data.error_description
+    })
 
     if (!tokenResponse.ok) {
+      console.log('Debug - Token Exchange Failed:', data)
       return new Response(null, {
         status: 302,
         headers: {
@@ -67,6 +94,7 @@ export async function GET(request: Request) {
     }
 
     if (!data.access_token) {
+      console.log('Debug - No Access Token in Response')
       return new Response(null, {
         status: 302,
         headers: {
@@ -75,6 +103,7 @@ export async function GET(request: Request) {
       })
     }
 
+    console.log('Debug - Success, Setting Cookie')
     const response = new Response(null, {
       status: 302,
       headers: {
@@ -87,10 +116,11 @@ export async function GET(request: Request) {
 
     return response
   } catch (error) {
+    console.log('Debug - Unexpected Error:', error)
     return new Response(null, {
       status: 302,
       headers: {
-        Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_error`
+        Location: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_error&details=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`
       }
     })
   }
