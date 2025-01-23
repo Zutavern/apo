@@ -818,8 +818,8 @@ export default function WeatherPage() {
       const weatherData = await weatherResponse.json()
       
       if (weatherData) {
-        setWeatherData({
-          current: {
+          setWeatherData({
+            current: {
             temperature_2m: weatherData.temperature_2m,
             relative_humidity_2m: weatherData.relative_humidity_2m,
             apparent_temperature: weatherData.apparent_temperature,
@@ -830,9 +830,9 @@ export default function WeatherPage() {
             uv_index: weatherData.uv_index,
             pressure_msl: weatherData.pressure_msl,
             surface_pressure: weatherData.surface_pressure
-          },
-          daily: {
-            time: [new Date().toISOString().split('T')[0]],
+            },
+            daily: {
+              time: [new Date().toISOString().split('T')[0]],
             temperature_2m_max: [weatherData.temperature_2m + 2],
             temperature_2m_min: [weatherData.temperature_2m - 2],
             precipitation_sum: [weatherData.precipitation * 24],
@@ -929,8 +929,8 @@ export default function WeatherPage() {
       console.log('Raw Forecast DB Response:', forecastData)
 
       if (weatherData) {
-        setWeatherData({
-          current: {
+            setWeatherData({
+              current: {
             temperature_2m: weatherData.temperature_2m,
             relative_humidity_2m: weatherData.relative_humidity_2m,
             apparent_temperature: weatherData.apparent_temperature,
@@ -941,9 +941,9 @@ export default function WeatherPage() {
             uv_index: weatherData.uv_index,
             pressure_msl: weatherData.pressure_msl,
             surface_pressure: weatherData.surface_pressure
-          },
-          daily: {
-            time: [new Date().toISOString().split('T')[0]],
+              },
+              daily: {
+                time: [new Date().toISOString().split('T')[0]],
             temperature_2m_max: [weatherData.temperature_2m + 2],
             temperature_2m_min: [weatherData.temperature_2m - 2],
             precipitation_sum: [weatherData.precipitation * 24],
@@ -997,12 +997,12 @@ export default function WeatherPage() {
     } catch (error) {
       console.error('Fehler beim Laden der Daten:', error)
       setError('Fehler beim Laden der Daten')
-    } finally {
+      } finally {
       setIsLoadingWeather(false)
       setIsLoadingPollen(false)
       setIsLoadingForecast(false)
+      }
     }
-  }
 
   useEffect(() => {
     loadDbData()
@@ -1176,7 +1176,7 @@ export default function WeatherPage() {
           <div>
             <h1 className="text-2xl font-bold">
               Aktuelles Wetter in Hohenmölsen am {formattedDate}
-            </h1>
+        </h1>
             <p className="text-sm text-gray-400 mt-1">
               Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
                 hour: '2-digit', 
@@ -1210,7 +1210,7 @@ export default function WeatherPage() {
           <div>
             <h1 className="text-2xl font-bold">
               Aktuelles Wetter in Hohenmölsen am {formattedDate}
-            </h1>
+        </h1>
             <p className="text-sm text-gray-400 mt-1">
               Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
                 hour: '2-digit', 
@@ -1243,7 +1243,7 @@ export default function WeatherPage() {
           <div>
             <h1 className="text-2xl font-bold">
               Aktuelles Wetter in Hohenmölsen am {formattedDate}
-            </h1>
+        </h1>
             <p className="text-sm text-gray-400 mt-1">
               Letzte Aktualisierung: {lastUpdate?.toLocaleTimeString('de-DE', { 
                 hour: '2-digit', 
@@ -1272,7 +1272,7 @@ export default function WeatherPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <div>
+              <div>
           <h1 className="text-2xl font-bold">
             Aktuelles Wetter in Hohenmölsen am {formattedDate}
           </h1>
@@ -1285,7 +1285,7 @@ export default function WeatherPage() {
               year: 'numeric'
             })} Uhr
           </p>
-        </div>
+                </div>
         <button
           className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
           onClick={handleUpdate}
@@ -1294,7 +1294,7 @@ export default function WeatherPage() {
           <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
           <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
         </button>
-      </div>
+              </div>
       <div className="grid gap-4 md:grid-cols-2">
         <CurrentWeatherCard 
           weatherData={weatherData} 
@@ -1307,16 +1307,16 @@ export default function WeatherPage() {
           dataSource={pollenDataSource}
           onSourceToggle={handlePollenSourceToggle}
           isLoading={isLoadingPollen}
-        />
-      </div>
+            />
+          </div>
       <div className="mt-4">
         <ForecastCard
           forecastData={forecastData}
           dataSource={forecastDataSource}
           onSourceToggle={handleForecastSourceToggle}
           isLoading={isLoadingForecast}
-        />
-      </div>
+            />
+          </div>
     </div>
   )
 } 
