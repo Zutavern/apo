@@ -127,7 +127,12 @@ export default function SocialSettings() {
             errorMessage = `Token-Austausch fehlgeschlagen${status ? ` (Status: ${status})` : ''}.${details ? `\nDetails: ${decodeURIComponent(details)}` : ''}`;
             break;
           case 'invalid_response':
-            errorMessage = `Ungültige Antwort vom Server erhalten${status ? ` (Status: ${status})` : ''}.${details ? `\n${decodeURIComponent(details)}` : ''}`;
+            // Prüfe auf Cloudflare-Schutzseite
+            if (details?.includes('Just a moment...')) {
+              errorMessage = 'Die Verbindung zu Canva wurde temporär blockiert. Bitte warten Sie einen Moment und versuchen Sie es dann erneut.';
+            } else {
+              errorMessage = `Ungültige Antwort vom Server erhalten${status ? ` (Status: ${status})` : ''}.${details ? `\n${decodeURIComponent(details)}` : ''}`;
+            }
             break;
           case 'invalid_token_response':
             errorMessage = 'Ungültige Antwort von Canva erhalten.';

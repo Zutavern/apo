@@ -58,8 +58,17 @@ export async function GET(request: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Origin': 'https://neueapotheke.vercel.app',
+        'Referer': 'https://neueapotheke.vercel.app/',
+        'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       },
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'follow',
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
