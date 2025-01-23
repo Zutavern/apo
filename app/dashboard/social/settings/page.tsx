@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -88,15 +88,79 @@ export default function SocialSettings() {
     })
   }
 
+  // Canva Verbindungsstatus beim Laden prüfen
+  useEffect(() => {
+    const checkCanvaConnection = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const success = urlParams.get('success');
+      const error = urlParams.get('error');
+
+      if (success === 'true') {
+        setCanvaConnection({ connected: true });
+      } else if (error) {
+        console.error('Canva connection error:', error);
+        setCanvaConnection({ connected: false });
+      }
+    };
+
+    checkCanvaConnection();
+  }, []);
+
+  // PKCE Code Challenge Funktion
+  const generateRandomString = (length: number) => {
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    let text = '';
+    for (let i = 0; i < length; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+  };
+
+  const generateCodeChallenge = async (codeVerifier: string) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const base64Url = btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    return base64Url;
+  };
+
   // Canva verbinden
   const connectCanva = async () => {
-    // Canva OAuth Flow implementieren
-    setCanvaConnection({
-      connected: true,
-      pageId: 'dummy-page-id',
-      pageName: 'Mein Canva Workspace'
-    })
-  }
+    if (canvaConnection.connected) {
+      // Wenn bereits verbunden, trennen
+      setCanvaConnection({ connected: false });
+      // Cookie löschen
+      document.cookie = 'canva_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      return;
+    }
+
+    const codeVerifier = generateRandomString(64);
+    console.log('Generated Code Verifier:', codeVerifier);
+    
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    console.log('Generated Code Challenge:', codeChallenge);
+    
+    // Speichere code_verifier in einem Cookie
+    document.cookie = `canva_code_verifier=${codeVerifier}; path=/; secure; samesite=lax`;
+    console.log('Stored Code Verifier in Cookie');
+
+    const params = new URLSearchParams({
+      code_challenge_method: 's256',
+      response_type: 'code',
+      client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID!,
+      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`,
+      scope: 'app:read design:content:read design:meta:read asset:read brandtemplate:meta:read brandtemplate:content:read',
+      code_challenge: codeChallenge
+    });
+
+    const authUrl = `https://www.canva.com/api/oauth/authorize?${params.toString()}`;
+    console.log('Generated Auth URL:', authUrl);
+
+    window.location.href = authUrl;
+  };
 
   const handleLayoutToggle = () => {
     setLayoutType(current => {
@@ -259,34 +323,27 @@ export default function SocialSettings() {
         </Card>
 
         {/* Canva Card */}
-        <Card className="bg-card border-border hover:border-border/80 transition-colors">
+        <Card className="bg-card border-border hover:border-border/80">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <SiCanva className="w-8 h-8 text-[#7D2AE8]" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">Canva</h3>
-                    <div 
-                      className={`w-2 h-2 rounded-full ${
-                        canvaConnection.connected ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {canvaConnection.connected 
-                      ? `${canvaConnection.pageName}`
-                      : ''}
-                  </p>
-                </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <SiCanva className="text-[#00C4CC] text-2xl" />
+                <h3 className="text-lg font-semibold text-foreground">Canva</h3>
               </div>
-              <Button
-                variant={canvaConnection.connected ? "destructive" : "default"}
-                onClick={connectCanva}
-              >
-                {canvaConnection.connected ? 'Trennen' : 'Verbinden'}
-              </Button>
+              <Badge variant={canvaConnection.connected ? "secondary" : "outline"}>
+                {canvaConnection.connected ? "Verbunden" : "Nicht verbunden"}
+              </Badge>
             </div>
+            <p className="text-muted-foreground mb-4">
+              Verbinden Sie Ihr Canva-Konto, um auf Ihre Design-Assets zuzugreifen.
+            </p>
+            <Button
+              onClick={connectCanva}
+              variant={canvaConnection.connected ? "destructive" : "default"}
+              className="w-full"
+            >
+              {canvaConnection.connected ? "Trennen" : "Verbinden"}
+            </Button>
           </CardContent>
         </Card>
       </div>
