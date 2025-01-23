@@ -49,8 +49,12 @@ export async function GET(request: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Connection': 'keep-alive',
+        'User-Agent': 'vercel-oauth-client/1.0'
       },
+      // @ts-ignore
+      http2: false, // Force HTTP/1.1
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
