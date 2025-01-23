@@ -129,37 +129,52 @@ export default function SocialSettings() {
 
   // Canva verbinden
   const connectCanva = async () => {
+    const clientId = process.env.NEXT_PUBLIC_CANVA_CLIENT_ID;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+    // Überprüfe ob die notwendigen Umgebungsvariablen verfügbar sind
+    if (!clientId || !appUrl) {
+      console.error('Fehlende Umgebungsvariablen:', {
+        clientId: clientId ? 'vorhanden' : 'fehlt',
+        appUrl: appUrl ? 'vorhanden' : 'fehlt'
+      });
+      alert('Konfigurationsfehler: Bitte kontaktieren Sie den Administrator.');
+      return;
+    }
+
     if (canvaConnection.connected) {
-      // Wenn bereits verbunden, trennen
       setCanvaConnection({ connected: false });
-      // Cookie löschen
       document.cookie = 'canva_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       return;
     }
 
-    const codeVerifier = generateRandomString(64);
-    console.log('Generated Code Verifier:', codeVerifier);
-    
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    console.log('Generated Code Challenge:', codeChallenge);
-    
-    // Speichere code_verifier in einem Cookie
-    document.cookie = `canva_code_verifier=${codeVerifier}; path=/; secure; samesite=lax`;
-    console.log('Stored Code Verifier in Cookie');
+    try {
+      const codeVerifier = generateRandomString(64);
+      console.log('Generated Code Verifier:', codeVerifier);
+      
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      console.log('Generated Code Challenge:', codeChallenge);
+      
+      document.cookie = `canva_code_verifier=${codeVerifier}; path=/; secure; samesite=lax`;
+      console.log('Stored Code Verifier in Cookie');
 
-    const params = new URLSearchParams({
-      code_challenge_method: 's256',
-      response_type: 'code',
-      client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID!,
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`,
-      scope: 'app:read design:content:read design:meta:read asset:read brandtemplate:meta:read brandtemplate:content:read',
-      code_challenge: codeChallenge
-    });
+      const params = new URLSearchParams({
+        code_challenge_method: 's256',
+        response_type: 'code',
+        client_id: clientId,
+        redirect_uri: `${appUrl}/api/auth/canva/callback`,
+        scope: 'app:read design:content:read design:meta:read asset:read brandtemplate:meta:read brandtemplate:content:read',
+        code_challenge: codeChallenge
+      });
 
-    const authUrl = `https://www.canva.com/api/oauth/authorize?${params.toString()}`;
-    console.log('Generated Auth URL:', authUrl);
+      const authUrl = `https://www.canva.com/api/oauth/authorize?${params.toString()}`;
+      console.log('Generated Auth URL:', authUrl);
 
-    window.location.href = authUrl;
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Fehler beim Generieren der Auth URL:', error);
+      alert('Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.');
+    }
   };
 
   const handleLayoutToggle = () => {
