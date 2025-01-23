@@ -38,6 +38,13 @@ export async function GET(request: Request) {
 
   try {
     console.log('Starting token exchange...')
+    console.log('Token Request Parameters:', {
+      code,
+      client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID,
+      client_secret: process.env.CANVA_CLIENT_SECRET?.substring(0, 5) + '...',
+      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
+    })
+
     const tokenResponse = await fetch('https://www.canva.com/api/oauth/token', {
       method: 'POST',
       headers: {
@@ -49,22 +56,38 @@ export async function GET(request: Request) {
         code: code,
         client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID!,
         client_secret: process.env.CANVA_CLIENT_SECRET!,
-        code_verifier: codeVerifier?.value || '',
+        code_verifier: codeVerifier.value,
         redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
       }).toString()
     });
 
     console.log('Token Response Status:', tokenResponse.status);
+    console.log('Token Response Headers:', Object.fromEntries(tokenResponse.headers));
+    
     const responseText = await tokenResponse.text();
     console.log('Token Response Body:', responseText);
+
+    if (!tokenResponse.ok) {
+      console.error('Token exchange failed:', tokenResponse.status, responseText);
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed&status=${tokenResponse.status}`);
+    }
 
     let tokenData;
     try {
       tokenData = JSON.parse(responseText);
-      console.log('Parsed Token Data:', tokenData);
+      console.log('Parsed Token Data:', {
+        ...tokenData,
+        access_token: tokenData.access_token ? '***' : undefined
+      });
     } catch (error) {
       console.error('Error parsing token response:', error);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed`);
+      console.error('Raw response:', responseText);
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=invalid_token_response`);
+    }
+
+    if (!tokenData.access_token) {
+      console.error('No access token in response');
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=no_access_token`);
     }
 
     // Token in einem sicheren Cookie speichern
