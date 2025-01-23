@@ -66,10 +66,17 @@ export async function GET(request: Request) {
     
     const responseText = await tokenResponse.text();
     console.log('Token Response Body:', responseText);
+    console.log('Request Parameters:', {
+      grant_type: 'authorization_code',
+      code: code,
+      client_id: process.env.NEXT_PUBLIC_CANVA_CLIENT_ID,
+      code_verifier: codeVerifier.value,
+      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/canva/callback`
+    });
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', tokenResponse.status, responseText);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed&status=${tokenResponse.status}`);
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/social/settings?error=token_exchange_failed&status=${tokenResponse.status}&details=${encodeURIComponent(responseText)}`);
     }
 
     let tokenData;
