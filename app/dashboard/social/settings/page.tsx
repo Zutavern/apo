@@ -342,9 +342,16 @@ export default function SocialSettings() {
             <Button
               onClick={connectCanva}
               variant={canvaConnection.connected ? "destructive" : "default"}
-              className="w-full"
+              className="w-full mb-2"
             >
               {canvaConnection.connected ? "Trennen" : "Verbinden"}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.open('/api/auth/canva/test', '_blank')}
+            >
+              OAuth Flow Testen
             </Button>
           </CardContent>
         </Card>
