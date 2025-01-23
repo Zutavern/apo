@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 interface CanvaAuthConfig {
@@ -33,9 +32,12 @@ export class CanvaService {
    * Generiert einen zufälligen Code Verifier für PKCE
    */
   generateCodeVerifier(): string {
-    return randomBytes(32)
-      .toString('base64')
-      .replace(/[^a-zA-Z0-9]/g, '')
+    const array = new Uint8Array(32)
+    crypto.getRandomValues(array)
+    return btoa(String.fromCharCode(...array))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '')
       .substring(0, 43)
   }
 
