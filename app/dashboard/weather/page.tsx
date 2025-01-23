@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud } from 'lucide-react'
+import { Cloud, Image } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { PollenCard } from './components/cards/PollenCard'
 import { ForecastCard } from './components/cards/ForecastCard'
@@ -1286,14 +1286,23 @@ export default function WeatherPage() {
             })} Uhr
           </p>
                 </div>
-        <button
-          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
-          onClick={handleUpdate}
-          disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
-        >
-          <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
-          <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            onClick={handleUpdate}
+            disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
+          >
+            <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
+            <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
+          </button>
+          <a
+            href="/dashboard/weather/backgrounds"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors"
+          >
+            <Image className="h-4 w-4 text-purple-500" />
+            <span>Hintergründe</span>
+          </a>
+        </div>
               </div>
       <div className="grid gap-4 md:grid-cols-2">
         <CurrentWeatherCard 
