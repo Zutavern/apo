@@ -276,3 +276,13 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+[[webhooks]]
+  name = "process-news-images"
+  table = "news_images"
+  events = ["INSERT"]
+  http_method = "POST"
+  url = "https://pbpayybakxtpsrvbuhvm.functions.supabase.co/process-news-images"
+  headers = { "Content-Type" = "application/json" }
+  params = { event_type = "{{.data.event_type}}", image_url = "{{.data.image_url}}", id = "{{.data.id}}" }
+  timeout_ms = 5000
+

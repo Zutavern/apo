@@ -300,33 +300,10 @@ export default function NewsApiPage() {
     return filtered.slice(start, end)
   }
 
-  // Funktion zum Prüfen, ob ein Artikel bereits in der news Tabelle existiert
-  const checkArticleExists = async (url: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('news')
-        .select('url')
-        .eq('url', url)
-
-      if (error) {
-        console.error('Fehler beim Prüfen des Artikels:', error.message)
-        return false
-      }
-
-      return data && data.length > 0
-    } catch (error) {
-      console.error('Unerwarteter Fehler beim Prüfen des Artikels:', error)
-      return false
-    }
-  }
-
   // Funktion zum Kopieren/Löschen einer Nachricht in der news Tabelle
   const toggleNews = async (item: MediaStackNews) => {
     try {
-      const exists = await checkArticleExists(item.url)
-      console.log('Artikel Status:', exists ? 'Existiert bereits' : 'Neu')
-
-      if (!exists) {
+      if (!item.copy) {
         // Kopiere in news Tabelle
         const { error: insertError } = await supabase
           .from('news')
@@ -341,11 +318,20 @@ export default function NewsApiPage() {
           })
 
         if (insertError) {
-          console.error('Fehler beim Kopieren der Nachricht:', insertError.message)
+          console.error('Fehler beim Kopieren der Nachricht:', insertError)
           return
         }
 
-        console.log('Artikel erfolgreich kopiert')
+        // Setze copy Flag in api_news auf true
+        const { error: updateError } = await supabase
+          .from('api_news')
+          .update({ copy: true })
+          .eq('url', item.url)
+
+        if (updateError) {
+          console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
+          return
+        }
       } else {
         // Lösche aus news Tabelle
         const { error: deleteError } = await supabase
@@ -354,18 +340,27 @@ export default function NewsApiPage() {
           .eq('url', item.url)
 
         if (deleteError) {
-          console.error('Fehler beim Löschen der Nachricht:', deleteError.message)
+          console.error('Fehler beim Löschen der Nachricht:', deleteError)
           return
         }
 
-        console.log('Artikel erfolgreich gelöscht')
+        // Setze copy Flag in api_news auf false
+        const { error: updateError } = await supabase
+          .from('api_news')
+          .update({ copy: false })
+          .eq('url', item.url)
+
+        if (updateError) {
+          console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
+          return
+        }
       }
 
       // Aktualisiere die UI
       setApiNews(prevNews => 
         prevNews.map(news => 
           news.url === item.url 
-            ? { ...news, copy: !exists }
+            ? { ...news, copy: !news.copy }
             : news
         )
       )
@@ -373,37 +368,6 @@ export default function NewsApiPage() {
       console.error('Fehler beim Verarbeiten der Nachricht:', error)
     }
   }
-
-  // Effekt zum Laden des initialen Status der Artikel
-  useEffect(() => {
-    const loadArticleStatus = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('news')
-          .select('url')
-
-        if (error) {
-          console.error('Fehler beim Laden der Artikel-Status:', error)
-          return
-        }
-
-        const copiedUrls = new Set(data.map(item => item.url))
-        
-        setApiNews(prevNews => 
-          prevNews.map(news => ({
-            ...news,
-            copy: copiedUrls.has(news.url)
-          }))
-        )
-      } catch (error) {
-        console.error('Fehler beim Laden der Artikel-Status:', error)
-      }
-    }
-
-    if (apiNews.length > 0) {
-      loadArticleStatus()
-    }
-  }, [apiNews.length])
 
   return (
     <div className="container mx-auto px-4">
