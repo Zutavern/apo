@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud, Image } from 'lucide-react'
+import { Cloud, Image, RefreshCw, Siren, Monitor } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { PollenCard } from './components/cards/PollenCard'
 import { ForecastCard } from './components/cards/ForecastCard'
@@ -1288,19 +1288,31 @@ export default function WeatherPage() {
                 </div>
         <div className="flex items-center gap-2">
           <button
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
             onClick={handleUpdate}
             disabled={isLoadingWeather || isLoadingPollen || isLoadingForecast}
           >
-            <Cloud className={`h-4 w-4 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
-            <span>{(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'Wird aktualisiert...' : 'Update Daten'}</span>
+            <RefreshCw className={`h-5 w-5 text-blue-500 ${(isLoadingWeather || isLoadingPollen || isLoadingForecast) ? 'animate-spin' : ''}`} />
           </button>
           <a
             href="/dashboard/weather/backgrounds"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors"
           >
-            <Image className="h-4 w-4 text-purple-500" />
-            <span>Hintergründe</span>
+            <Image className="h-5 w-5 text-purple-500" />
+          </a>
+          <a
+            href="/wetter/portrait"
+            className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors"
+          >
+            <Monitor className="h-5 w-5 text-green-500" />
+            <span>Portrait</span>
+          </a>
+          <a
+            href="/wetter/landscape"
+            className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors"
+          >
+            <Monitor className="h-5 w-5 text-green-500" />
+            <span>Landscape</span>
           </a>
         </div>
               </div>
