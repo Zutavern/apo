@@ -34,31 +34,35 @@ const ImageUploadButton = ({
   orientation: 'portrait' | 'landscape'
   onUpload: (file: File) => Promise<void>
   isUploading: boolean 
-}) => (
-  <Button
-    onClick={() => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = 'image/*'
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0]
-        if (file) onUpload(file)
-      }
-      input.click()
-    }}
-    disabled={isUploading}
-    className="bg-blue-500 hover:bg-blue-600"
-  >
-    {isUploading ? (
-      'Wird hochgeladen...'
-    ) : (
-      <div className="flex items-center gap-2">
-        <Upload className="h-4 w-4" />
-        <span>Hochladen</span>
-      </div>
-    )}
-  </Button>
-)
+}) => {
+  const handleClick = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) await onUpload(file)
+    }
+    input.click()
+  }
+
+  return (
+    <Button
+      onClick={handleClick}
+      disabled={isUploading}
+      className="bg-blue-500 hover:bg-blue-600"
+    >
+      {isUploading ? (
+        'Wird hochgeladen...'
+      ) : (
+        <div className="flex items-center gap-2">
+          <Upload className="h-4 w-4" />
+          <span>Hochladen</span>
+        </div>
+      )}
+    </Button>
+  )
+}
 
 const SafeImage = ({ src, alt, className }: { 
   src: string
@@ -66,8 +70,6 @@ const SafeImage = ({ src, alt, className }: {
   className?: string 
 }) => {
   const [error, setError] = useState(false)
-
-  // Optimierte URL mit Supabase Transformation
   const optimizedSrc = `${src}?width=600&quality=80&resize=contain`
 
   if (error) {
@@ -96,21 +98,34 @@ const SafeImage = ({ src, alt, className }: {
 
 const EmptyState = ({ type, onUpload }: { 
   type: 'portrait' | 'landscape'
-  onUpload: () => void 
-}) => (
-  <div className="flex flex-col items-center justify-center p-8 bg-gray-900/50 rounded-lg border border-white/10">
-    <p className="text-gray-400 text-center mb-4">
-      Noch keine {type === 'portrait' ? 'Portrait' : 'Landscape'} Bilder hochgeladen
-    </p>
-    <Button
-      onClick={onUpload}
-      className="bg-blue-500 hover:bg-blue-600"
-    >
-      <Upload className="h-4 w-4 mr-2" />
-      Erstes Bild hochladen
-    </Button>
-  </div>
-)
+  onUpload: (file: File) => Promise<void>
+}) => {
+  const handleClick = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) await onUpload(file)
+    }
+    input.click()
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center p-8 bg-gray-900/50 rounded-lg border border-white/10">
+      <p className="text-gray-400 text-center mb-4">
+        Noch keine {type === 'portrait' ? 'Portrait' : 'Landscape'} Bilder hochgeladen
+      </p>
+      <Button
+        onClick={handleClick}
+        className="bg-blue-500 hover:bg-blue-600"
+      >
+        <Upload className="h-4 w-4 mr-2" />
+        Erstes Bild hochladen
+      </Button>
+    </div>
+  )
+}
 
 // Hauptkomponente
 export default function WeatherBackgrounds() {
@@ -122,7 +137,6 @@ export default function WeatherBackgrounds() {
   const [landscapeImages, setLandscapeImages] = useState<WeatherBackground[]>([])
   const [isPortraitUploading, setIsPortraitUploading] = useState(false)
   const [isLandscapeUploading, setIsLandscapeUploading] = useState(false)
-  const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
 
   // Bilder laden
   useEffect(() => {
@@ -157,25 +171,36 @@ export default function WeatherBackgrounds() {
 
   // Upload Handler
   const handleUpload = async (file: File, orientation: 'portrait' | 'landscape') => {
+    const setUploading = orientation === 'portrait' 
+      ? setIsPortraitUploading 
+      : setIsLandscapeUploading
+
+    setUploading(true)
+    
     try {
       // Validierung
       if (!file.type.startsWith('image/')) {
-        toast.error('Bitte nur Bilddateien hochladen')
-        return
+        throw new Error('Ungültiger Dateityp. Bitte nur Bilddateien hochladen.')
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        toast.error('Bild darf nicht größer als 5MB sein')
-        return
+        throw new Error('Datei ist zu groß. Maximale Größe ist 5MB.')
       }
 
       const bucketName = orientation === 'portrait' ? PORTRAIT_BUCKET : LANDSCAPE_BUCKET
       const timestamp = Date.now()
-      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const sanitizedFileName = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '_')
       const fileName = `${timestamp}-${sanitizedFileName}`
 
+      console.log('Starte Upload:', {
+        bucketName,
+        fileName,
+        fileType: file.type,
+        fileSize: file.size
+      })
+
       // Upload zur Storage
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
           cacheControl: '3600',
@@ -183,10 +208,18 @@ export default function WeatherBackgrounds() {
           contentType: file.type
         })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Storage Upload Fehler:', uploadError)
+        throw new Error(`Fehler beim Upload: ${uploadError.message}`)
+      }
+
+      console.log('Upload erfolgreich:', uploadData)
+
+      // Warte kurz, um sicherzustellen, dass der Upload verarbeitet wurde
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Datenbank-Eintrag
-      const { error: dbError } = await supabase
+      const { error: dbError, data: dbData } = await supabase
         .from('weather_backgrounds')
         .insert({
           file_name: sanitizedFileName,
@@ -195,25 +228,39 @@ export default function WeatherBackgrounds() {
           storage_path: fileName,
           is_selected: false
         })
+        .select()
+        .single()
 
       if (dbError) {
+        console.error('Datenbank Fehler:', dbError)
         // Cleanup bei DB-Fehler
         await supabase.storage
           .from(bucketName)
           .remove([fileName])
-        throw dbError
+        throw new Error(`Datenbankfehler: ${dbError.message}`)
       }
 
+      console.log('Datenbank Eintrag erstellt:', dbData)
+
       toast.success(`${orientation === 'portrait' ? 'Portrait' : 'Landscape'}-Bild erfolgreich hochgeladen`)
+      
+      // Warte kurz, bevor die Bilder neu geladen werden
+      await new Promise(resolve => setTimeout(resolve, 500))
       await loadImages()
     } catch (error) {
-      console.error('Upload Fehler:', error)
-      toast.error('Fehler beim Hochladen des Bildes')
+      console.error('Upload Fehler:', error instanceof Error ? error.message : 'Unbekannter Fehler')
+      toast.error(error instanceof Error ? error.message : 'Fehler beim Hochladen des Bildes')
+    } finally {
+      setUploading(false)
     }
   }
 
   // Delete Handler
   const handleDelete = async (image: WeatherBackground) => {
+    if (!confirm('Möchten Sie dieses Bild wirklich löschen?')) {
+      return
+    }
+
     try {
       const { error: storageError } = await supabase.storage
         .from(image.bucket_name)
@@ -264,225 +311,149 @@ export default function WeatherBackgrounds() {
         })))
       }
 
-      toast.success(`${image.orientation === 'portrait' ? 'Portrait' : 'Landscape'}-Bild ausgewählt`)
+      toast.success(`${image.orientation === 'portrait' ? 'Portrait' : 'Landscape'}-Bild als Standard ausgewählt`)
     } catch (error) {
       console.error('Auswahlfehler:', error)
       toast.error('Fehler beim Auswählen des Bildes')
-      await loadImages() // Refresh bei Fehler
+      await loadImages() // Lade bei Fehler die Bilder neu
     }
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="h-10 w-10"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Hintergründe</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Bitte laden Sie Hintergründe für die Wetter Screens hoch und treffen Sie Ihre Auswahl
-            </p>
-          </div>
+      <div className="flex items-center gap-4 mb-8">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Zurück
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Hintergründe</h1>
+          <p className="text-sm text-gray-400">
+            Bitte laden Sie Hintergründe für die Wetter Screens hoch und treffen Sie Ihre Auswahl
+          </p>
         </div>
       </div>
 
-      {/* Portrait Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Portrait Format</h2>
-          <ImageUploadButton
-            orientation="portrait"
-            onUpload={async (file) => {
-              setIsPortraitUploading(true)
-              await handleUpload(file, 'portrait')
-              setIsPortraitUploading(false)
-            }}
-            isUploading={isPortraitUploading}
-          />
-        </div>
-
-        {portraitImages.length === 0 ? (
-          <EmptyState 
-            type="portrait" 
-            onUpload={() => {
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.accept = 'image/*'
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0]
-                if (file) {
-                  setIsPortraitUploading(true)
-                  await handleUpload(file, 'portrait')
-                  setIsPortraitUploading(false)
-                }
-              }
-              input.click()
-            }} 
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {portraitImages.map((image) => (
-              <Card key={image.id}>
-                <CardContent className="p-4 space-y-4">
-                  <SafeImage
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image.bucket_name}/${image.storage_path}`}
-                    alt={image.file_name}
-                    className="w-full"
-                  />
-                  <div className="flex gap-2">
-                    {deletingImageId === image.id ? (
-                      <div className="flex gap-2 w-full">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => {
-                            handleDelete(image)
-                            setDeletingImageId(null)
-                          }}
-                        >
-                          Ja
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => setDeletingImageId(null)}
-                        >
-                          Nein
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => setDeletingImageId(image.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Löschen
-                        </Button>
-                        <Button
-                          variant={image.is_selected ? "secondary" : "default"}
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => handleSelect(image)}
-                        >
-                          {image.is_selected ? "Ausgewählt" : "Auswählen"}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+      {/* Portrait Bilder */}
+      <Card className="bg-gray-900/50 border-white/10">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Portrait Bilder</h2>
+            <ImageUploadButton
+              orientation="portrait"
+              onUpload={(file) => handleUpload(file, 'portrait')}
+              isUploading={isPortraitUploading}
+            />
           </div>
-        )}
-      </section>
+          
+          {portraitImages.length === 0 ? (
+            <EmptyState 
+              type="portrait" 
+              onUpload={(file: File) => handleUpload(file, 'portrait')} 
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {portraitImages.map(image => {
+                const imageUrl = supabase.storage
+                  .from(image.bucket_name)
+                  .getPublicUrl(image.storage_path)
+                  .data.publicUrl
 
-      {/* Landscape Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Landscape Format</h2>
-          <ImageUploadButton
-            orientation="landscape"
-            onUpload={async (file) => {
-              setIsLandscapeUploading(true)
-              await handleUpload(file, 'landscape')
-              setIsLandscapeUploading(false)
-            }}
-            isUploading={isLandscapeUploading}
-          />
-        </div>
-
-        {landscapeImages.length === 0 ? (
-          <EmptyState 
-            type="landscape"
-            onUpload={() => {
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.accept = 'image/*'
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0]
-                if (file) {
-                  setIsLandscapeUploading(true)
-                  await handleUpload(file, 'landscape')
-                  setIsLandscapeUploading(false)
-                }
-              }
-              input.click()
-            }}
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {landscapeImages.map((image) => (
-              <Card key={image.id}>
-                <CardContent className="p-4 space-y-4">
-                  <SafeImage
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image.bucket_name}/${image.storage_path}`}
-                    alt={image.file_name}
-                    className="w-full"
-                  />
-                  <div className="flex gap-2">
-                    {deletingImageId === image.id ? (
-                      <div className="flex gap-2 w-full">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => {
-                            handleDelete(image)
-                            setDeletingImageId(null)
-                          }}
-                        >
-                          Ja
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => setDeletingImageId(null)}
-                        >
-                          Nein
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => setDeletingImageId(image.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Löschen
-                        </Button>
-                        <Button
-                          variant={image.is_selected ? "secondary" : "default"}
-                          size="sm"
-                          className="w-1/2"
-                          onClick={() => handleSelect(image)}
-                        >
-                          {image.is_selected ? "Ausgewählt" : "Auswählen"}
-                        </Button>
-                      </>
-                    )}
+                return (
+                  <div key={image.id} className="space-y-2">
+                    <SafeImage
+                      src={imageUrl}
+                      alt={image.file_name}
+                      className={image.is_selected ? 'ring-2 ring-green-500' : ''}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleDelete(image)}
+                        className="w-1/2"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
+                      </Button>
+                      <Button
+                        variant={image.is_selected ? "secondary" : "default"}
+                        onClick={() => handleSelect(image)}
+                        className="w-1/2"
+                        disabled={image.is_selected}
+                      >
+                        {image.is_selected ? 'Ausgewählt' : 'Auswählen'}
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Landscape Bilder */}
+      <Card className="bg-gray-900/50 border-white/10">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Landscape Bilder</h2>
+            <ImageUploadButton
+              orientation="landscape"
+              onUpload={(file) => handleUpload(file, 'landscape')}
+              isUploading={isLandscapeUploading}
+            />
           </div>
-        )}
-      </section>
+          
+          {landscapeImages.length === 0 ? (
+            <EmptyState 
+              type="landscape" 
+              onUpload={(file: File) => handleUpload(file, 'landscape')} 
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {landscapeImages.map(image => {
+                const imageUrl = supabase.storage
+                  .from(image.bucket_name)
+                  .getPublicUrl(image.storage_path)
+                  .data.publicUrl
+
+                return (
+                  <div key={image.id} className="space-y-2">
+                    <SafeImage
+                      src={imageUrl}
+                      alt={image.file_name}
+                      className={image.is_selected ? 'ring-2 ring-green-500' : ''}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleDelete(image)}
+                        className="w-1/2"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Löschen
+                      </Button>
+                      <Button
+                        variant={image.is_selected ? "secondary" : "default"}
+                        onClick={() => handleSelect(image)}
+                        className="w-1/2"
+                        disabled={image.is_selected}
+                      >
+                        {image.is_selected ? 'Ausgewählt' : 'Auswählen'}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 } 
