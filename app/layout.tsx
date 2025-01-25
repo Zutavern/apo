@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ihre Webapp",
-  description: "Beschreibung Ihrer Webapp",
+  title: "INA Clean",
+  description: "Informations- und Nachrichtensystem für die Stadt Hohenmölsen",
 };
 
 export const viewport = {
@@ -24,11 +24,19 @@ export const viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="de" suppressHydrationWarning>
+      <head>
+        <link 
+          rel="preload" 
+          href="/_next/static/css/app/layout.css" 
+          as="style"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
         suppressHydrationWarning
