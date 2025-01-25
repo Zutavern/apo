@@ -147,10 +147,6 @@ export default function WeatherLandscape() {
                 <p className="text-base text-gray-400">Niederschlag</p>
                 <p className="text-3xl font-bold">{weatherData.precipitation_sum} mm</p>
               </div>
-              <div className="text-center">
-                <p className="text-base text-gray-400">Wetter-Code</p>
-                <p className="text-3xl font-bold">{weatherData.weather_code}</p>
-              </div>
             </div>
           ) : (
             <div className="text-center text-gray-400 text-xl">

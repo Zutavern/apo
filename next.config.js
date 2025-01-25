@@ -14,6 +14,7 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
     ],
+    domains: ['pbpayybakxtpsrvbuhvm.supabase.co']
   }
 }
 
