@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Cloud, Image, RefreshCw, Siren, Monitor } from 'lucide-react'
+import { Cloud, Image, RefreshCw, Siren, Monitor, LayoutGrid, Columns, Rows } from 'lucide-react'
 import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
 import { PollenCard } from './components/cards/PollenCard'
 import { ForecastCard } from './components/cards/ForecastCard'
@@ -195,6 +195,8 @@ type ForecastData = {
     pressure_msl_mean: number[]
   }
 }
+
+type LayoutType = 'single' | 'double' | 'triple'
 
 const HOHENMOLSEN_COORDS = {
   latitude: 51.1667,
@@ -800,6 +802,8 @@ export default function WeatherPage() {
   const [pollenDataSource, setPollenDataSource] = useState<'api' | 'db'>('db')
   const [forecastDataSource, setForecastDataSource] = useState<'api' | 'db'>('db')
 
+  const [layoutType, setLayoutType] = useState<LayoutType>('double')
+
   const handleUpdate = async () => {
     try {
       setIsLoadingWeather(true)
@@ -1169,6 +1173,47 @@ export default function WeatherPage() {
     weatherData: weatherData ? JSON.stringify(weatherData, null, 2) : null
   })
 
+  const handleLayoutToggle = () => {
+    setLayoutType(current => {
+      if (current === 'single') return 'double'
+      if (current === 'double') return 'triple'
+      return 'single'
+    })
+  }
+
+  const getLayoutIcon = () => {
+    switch (layoutType) {
+      case 'single':
+        return <Rows className="w-5 h-5" />
+      case 'double':
+        return <Columns className="w-5 h-5" />
+      case 'triple':
+        return <LayoutGrid className="w-5 h-5" />
+    }
+  }
+
+  const getLayoutText = () => {
+    switch (layoutType) {
+      case 'single':
+        return '1 Spalte'
+      case 'double':
+        return '2 Spalten'
+      case 'triple':
+        return '3 Spalten'
+    }
+  }
+
+  const getGridClass = () => {
+    switch (layoutType) {
+      case 'single':
+        return 'grid gap-4'
+      case 'double':
+        return 'grid gap-4 md:grid-cols-2'
+      case 'triple':
+        return 'grid gap-4 md:grid-cols-2 lg:grid-cols-3'
+    }
+  }
+
   if (isLoadingWeather || isLoadingPollen || isLoadingForecast) {
     return (
       <div className="p-4 space-y-4">
@@ -1270,9 +1315,9 @@ export default function WeatherPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-              <div>
+    <div className="container mx-auto py-6">
+      <div className="flex flex-col-reverse sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-2">
+        <div>
           <h1 className="text-2xl font-bold">
             Aktuelles Wetter in Hohenmölsen am {formattedDate}
           </h1>
@@ -1285,8 +1330,15 @@ export default function WeatherPage() {
               year: 'numeric'
             })} Uhr
           </p>
-                </div>
-        <div className="flex items-center gap-2">
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+          <button
+            onClick={handleLayoutToggle}
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            title={`Layout ändern (${getLayoutText()})`}
+          >
+            {getLayoutIcon()}
+          </button>
           <button
             className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
             onClick={handleUpdate}
@@ -1315,8 +1367,9 @@ export default function WeatherPage() {
             <span>Landscape</span>
           </a>
         </div>
-              </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      </div>
+
+      <div className={getGridClass()}>
         <CurrentWeatherCard 
           weatherData={weatherData} 
           dataSource={weatherDataSource} 
@@ -1328,16 +1381,14 @@ export default function WeatherPage() {
           dataSource={pollenDataSource}
           onSourceToggle={handlePollenSourceToggle}
           isLoading={isLoadingPollen}
-            />
-          </div>
-      <div className="mt-4">
+        />
         <ForecastCard
           forecastData={forecastData}
           dataSource={forecastDataSource}
           onSourceToggle={handleForecastSourceToggle}
           isLoading={isLoadingForecast}
-            />
-          </div>
+        />
+      </div>
     </div>
   )
 } 
