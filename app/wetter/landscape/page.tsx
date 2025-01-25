@@ -13,7 +13,7 @@ interface WeatherBackground {
   is_selected: boolean
 }
 
-export default function WeatherPortrait() {
+export default function WeatherLandscape() {
   const supabase = createClientComponentClient()
   const [selectedImage, setSelectedImage] = useState<WeatherBackground | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -28,7 +28,7 @@ export default function WeatherPortrait() {
       const { data, error } = await supabase
         .from('weather_backgrounds')
         .select('*')
-        .eq('orientation', 'portrait')
+        .eq('orientation', 'landscape')
         .eq('is_selected', true)
         .single()
 

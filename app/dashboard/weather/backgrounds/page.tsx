@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
-import { Trash2, ArrowLeft, Upload } from 'lucide-react'
+import { Trash2, ArrowLeft, Upload, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
@@ -24,6 +24,7 @@ interface WeatherBackground {
 const PORTRAIT_BUCKET = 'bg-wetter-pt'
 const LANDSCAPE_BUCKET = 'bg-wetter-ls'
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const ITEMS_PER_PAGE = 3
 
 // Hilfskomponenten
 const ImageUploadButton = ({ 
@@ -34,35 +35,31 @@ const ImageUploadButton = ({
   orientation: 'portrait' | 'landscape'
   onUpload: (file: File) => Promise<void>
   isUploading: boolean 
-}) => {
-  const handleClick = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) await onUpload(file)
-    }
-    input.click()
-  }
-
-  return (
-    <Button
-      onClick={handleClick}
-      disabled={isUploading}
-      className="bg-blue-500 hover:bg-blue-600"
-    >
-      {isUploading ? (
-        'Wird hochgeladen...'
-      ) : (
-        <div className="flex items-center gap-2">
-          <Upload className="h-4 w-4" />
-          <span>Hochladen</span>
-        </div>
-      )}
-    </Button>
-  )
-}
+}) => (
+  <Button
+    onClick={() => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (file) onUpload(file)
+      }
+      input.click()
+    }}
+    disabled={isUploading}
+    className="bg-blue-500 hover:bg-blue-600"
+  >
+    {isUploading ? (
+      'Wird hochgeladen...'
+    ) : (
+      <div className="flex items-center gap-2">
+        <Upload className="h-4 w-4" />
+        <span>Hochladen</span>
+      </div>
+    )}
+  </Button>
+)
 
 const SafeImage = ({ src, alt, className }: { 
   src: string
@@ -70,6 +67,8 @@ const SafeImage = ({ src, alt, className }: {
   className?: string 
 }) => {
   const [error, setError] = useState(false)
+
+  // Optimierte URL mit Supabase Transformation
   const optimizedSrc = `${src}?width=600&quality=80&resize=contain`
 
   if (error) {
@@ -98,34 +97,21 @@ const SafeImage = ({ src, alt, className }: {
 
 const EmptyState = ({ type, onUpload }: { 
   type: 'portrait' | 'landscape'
-  onUpload: (file: File) => Promise<void>
-}) => {
-  const handleClick = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) await onUpload(file)
-    }
-    input.click()
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center p-8 bg-gray-900/50 rounded-lg border border-white/10">
-      <p className="text-gray-400 text-center mb-4">
-        Noch keine {type === 'portrait' ? 'Portrait' : 'Landscape'} Bilder hochgeladen
-      </p>
-      <Button
-        onClick={handleClick}
-        className="bg-blue-500 hover:bg-blue-600"
-      >
-        <Upload className="h-4 w-4 mr-2" />
-        Erstes Bild hochladen
-      </Button>
-    </div>
-  )
-}
+  onUpload: () => void 
+}) => (
+  <div className="flex flex-col items-center justify-center p-8 bg-gray-900/50 rounded-lg border border-white/10">
+    <p className="text-gray-400 text-center mb-4">
+      Noch keine {type === 'portrait' ? 'Portrait' : 'Landscape'} Bilder hochgeladen
+    </p>
+    <Button
+      onClick={onUpload}
+      className="bg-blue-500 hover:bg-blue-600"
+    >
+      <Upload className="h-4 w-4 mr-2" />
+      Erstes Bild hochladen
+    </Button>
+  </div>
+)
 
 // Hauptkomponente
 export default function WeatherBackgrounds() {
@@ -137,6 +123,23 @@ export default function WeatherBackgrounds() {
   const [landscapeImages, setLandscapeImages] = useState<WeatherBackground[]>([])
   const [isPortraitUploading, setIsPortraitUploading] = useState(false)
   const [isLandscapeUploading, setIsLandscapeUploading] = useState(false)
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
+  const [portraitPage, setPortraitPage] = useState(1)
+  const [landscapePage, setLandscapePage] = useState(1)
+
+  // Paging Logik
+  const portraitPagesCount = Math.ceil(portraitImages.length / ITEMS_PER_PAGE)
+  const landscapePagesCount = Math.ceil(landscapeImages.length / ITEMS_PER_PAGE)
+  
+  const paginatedPortraitImages = portraitImages.slice(
+    (portraitPage - 1) * ITEMS_PER_PAGE,
+    portraitPage * ITEMS_PER_PAGE
+  )
+  
+  const paginatedLandscapeImages = landscapeImages.slice(
+    (landscapePage - 1) * ITEMS_PER_PAGE,
+    landscapePage * ITEMS_PER_PAGE
+  )
 
   // Bilder laden
   useEffect(() => {
@@ -171,36 +174,25 @@ export default function WeatherBackgrounds() {
 
   // Upload Handler
   const handleUpload = async (file: File, orientation: 'portrait' | 'landscape') => {
-    const setUploading = orientation === 'portrait' 
-      ? setIsPortraitUploading 
-      : setIsLandscapeUploading
-
-    setUploading(true)
-    
     try {
       // Validierung
       if (!file.type.startsWith('image/')) {
-        throw new Error('Ungültiger Dateityp. Bitte nur Bilddateien hochladen.')
+        toast.error('Bitte nur Bilddateien hochladen')
+        return
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error('Datei ist zu groß. Maximale Größe ist 5MB.')
+        toast.error('Bild darf nicht größer als 5MB sein')
+        return
       }
 
       const bucketName = orientation === 'portrait' ? PORTRAIT_BUCKET : LANDSCAPE_BUCKET
       const timestamp = Date.now()
-      const sanitizedFileName = file.name.toLowerCase().replace(/[^a-z0-9.-]/g, '_')
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
       const fileName = `${timestamp}-${sanitizedFileName}`
 
-      console.log('Starte Upload:', {
-        bucketName,
-        fileName,
-        fileType: file.type,
-        fileSize: file.size
-      })
-
       // Upload zur Storage
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(fileName, file, {
           cacheControl: '3600',
@@ -208,18 +200,10 @@ export default function WeatherBackgrounds() {
           contentType: file.type
         })
 
-      if (uploadError) {
-        console.error('Storage Upload Fehler:', uploadError)
-        throw new Error(`Fehler beim Upload: ${uploadError.message}`)
-      }
-
-      console.log('Upload erfolgreich:', uploadData)
-
-      // Warte kurz, um sicherzustellen, dass der Upload verarbeitet wurde
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      if (uploadError) throw uploadError
 
       // Datenbank-Eintrag
-      const { error: dbError, data: dbData } = await supabase
+      const { error: dbError } = await supabase
         .from('weather_backgrounds')
         .insert({
           file_name: sanitizedFileName,
@@ -228,39 +212,25 @@ export default function WeatherBackgrounds() {
           storage_path: fileName,
           is_selected: false
         })
-        .select()
-        .single()
 
       if (dbError) {
-        console.error('Datenbank Fehler:', dbError)
         // Cleanup bei DB-Fehler
         await supabase.storage
           .from(bucketName)
           .remove([fileName])
-        throw new Error(`Datenbankfehler: ${dbError.message}`)
+        throw dbError
       }
 
-      console.log('Datenbank Eintrag erstellt:', dbData)
-
       toast.success(`${orientation === 'portrait' ? 'Portrait' : 'Landscape'}-Bild erfolgreich hochgeladen`)
-      
-      // Warte kurz, bevor die Bilder neu geladen werden
-      await new Promise(resolve => setTimeout(resolve, 500))
       await loadImages()
     } catch (error) {
-      console.error('Upload Fehler:', error instanceof Error ? error.message : 'Unbekannter Fehler')
-      toast.error(error instanceof Error ? error.message : 'Fehler beim Hochladen des Bildes')
-    } finally {
-      setUploading(false)
+      console.error('Upload Fehler:', error)
+      toast.error('Fehler beim Hochladen des Bildes')
     }
   }
 
   // Delete Handler
   const handleDelete = async (image: WeatherBackground) => {
-    if (!confirm('Möchten Sie dieses Bild wirklich löschen?')) {
-      return
-    }
-
     try {
       const { error: storageError } = await supabase.storage
         .from(image.bucket_name)
@@ -311,149 +281,279 @@ export default function WeatherBackgrounds() {
         })))
       }
 
-      toast.success(`${image.orientation === 'portrait' ? 'Portrait' : 'Landscape'}-Bild als Standard ausgewählt`)
+      toast.success(`${image.orientation === 'portrait' ? 'Portrait' : 'Landscape'}-Bild ausgewählt`)
     } catch (error) {
       console.error('Auswahlfehler:', error)
       toast.error('Fehler beim Auswählen des Bildes')
-      await loadImages() // Lade bei Fehler die Bilder neu
+      await loadImages() // Refresh bei Fehler
     }
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Zurück
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Hintergründe</h1>
-          <p className="text-sm text-gray-400">
-            Bitte laden Sie Hintergründe für die Wetter Screens hoch und treffen Sie Ihre Auswahl
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="h-10 w-10"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Hintergründe</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Bitte laden Sie Hintergründe für die Wetter Screens hoch und treffen Sie Ihre Auswahl
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Portrait Bilder */}
-      <Card className="bg-gray-900/50 border-white/10">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Portrait Bilder</h2>
-            <ImageUploadButton
-              orientation="portrait"
-              onUpload={(file) => handleUpload(file, 'portrait')}
-              isUploading={isPortraitUploading}
-            />
-          </div>
-          
-          {portraitImages.length === 0 ? (
-            <EmptyState 
-              type="portrait" 
-              onUpload={(file: File) => handleUpload(file, 'portrait')} 
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {portraitImages.map(image => {
-                const imageUrl = supabase.storage
-                  .from(image.bucket_name)
-                  .getPublicUrl(image.storage_path)
-                  .data.publicUrl
+      {/* Portrait Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Portrait Format</h2>
+          <ImageUploadButton
+            orientation="portrait"
+            onUpload={async (file) => {
+              setIsPortraitUploading(true)
+              await handleUpload(file, 'portrait')
+              setIsPortraitUploading(false)
+            }}
+            isUploading={isPortraitUploading}
+          />
+        </div>
 
-                return (
-                  <div key={image.id} className="space-y-2">
+        {portraitImages.length === 0 ? (
+          <EmptyState 
+            type="portrait" 
+            onUpload={() => {
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.accept = 'image/*'
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0]
+                if (file) {
+                  setIsPortraitUploading(true)
+                  await handleUpload(file, 'portrait')
+                  setIsPortraitUploading(false)
+                }
+              }
+              input.click()
+            }} 
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {paginatedPortraitImages.map((image) => (
+                <Card key={image.id}>
+                  <CardContent className="p-4 space-y-4">
                     <SafeImage
-                      src={imageUrl}
+                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image.bucket_name}/${image.storage_path}`}
                       alt={image.file_name}
-                      className={image.is_selected ? 'ring-2 ring-green-500' : ''}
+                      className="w-full"
                     />
                     <div className="flex gap-2">
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleDelete(image)}
-                        className="w-1/2"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </Button>
-                      <Button
-                        variant={image.is_selected ? "secondary" : "default"}
-                        onClick={() => handleSelect(image)}
-                        className="w-1/2"
-                        disabled={image.is_selected}
-                      >
-                        {image.is_selected ? 'Ausgewählt' : 'Auswählen'}
-                      </Button>
+                      {deletingImageId === image.id ? (
+                        <div className="flex gap-2 w-full">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => {
+                              handleDelete(image)
+                              setDeletingImageId(null)
+                            }}
+                          >
+                            Ja
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => setDeletingImageId(null)}
+                          >
+                            Nein
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => setDeletingImageId(image.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Löschen
+                          </Button>
+                          <Button
+                            variant={image.is_selected ? "secondary" : "default"}
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => handleSelect(image)}
+                          >
+                            {image.is_selected ? "Ausgewählt" : "Auswählen"}
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  </div>
-                )
-              })}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            
+            {/* Paging Controls für Portrait */}
+            <div className="flex justify-center gap-4 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setPortraitPage(p => Math.max(1, p - 1))}
+                disabled={portraitPage === 1}
+                className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Vorherige
+              </Button>
+              <span className="flex items-center px-4 py-2 rounded-md bg-gray-900/30 border border-gray-700 text-sm">
+                Seite {portraitPage} von {portraitPagesCount}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setPortraitPage(p => Math.min(portraitPagesCount, p + 1))}
+                disabled={portraitPage === portraitPagesCount}
+                className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
+              >
+                Nächste
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </>
+        )}
+      </section>
 
-      {/* Landscape Bilder */}
-      <Card className="bg-gray-900/50 border-white/10">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Landscape Bilder</h2>
-            <ImageUploadButton
-              orientation="landscape"
-              onUpload={(file) => handleUpload(file, 'landscape')}
-              isUploading={isLandscapeUploading}
-            />
-          </div>
-          
-          {landscapeImages.length === 0 ? (
-            <EmptyState 
-              type="landscape" 
-              onUpload={(file: File) => handleUpload(file, 'landscape')} 
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {landscapeImages.map(image => {
-                const imageUrl = supabase.storage
-                  .from(image.bucket_name)
-                  .getPublicUrl(image.storage_path)
-                  .data.publicUrl
+      {/* Landscape Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Landscape Format</h2>
+          <ImageUploadButton
+            orientation="landscape"
+            onUpload={async (file) => {
+              setIsLandscapeUploading(true)
+              await handleUpload(file, 'landscape')
+              setIsLandscapeUploading(false)
+            }}
+            isUploading={isLandscapeUploading}
+          />
+        </div>
 
-                return (
-                  <div key={image.id} className="space-y-2">
+        {landscapeImages.length === 0 ? (
+          <EmptyState 
+            type="landscape"
+            onUpload={() => {
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.accept = 'image/*'
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0]
+                if (file) {
+                  setIsLandscapeUploading(true)
+                  await handleUpload(file, 'landscape')
+                  setIsLandscapeUploading(false)
+                }
+              }
+              input.click()
+            }}
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {paginatedLandscapeImages.map((image) => (
+                <Card key={image.id}>
+                  <CardContent className="p-4 space-y-4">
                     <SafeImage
-                      src={imageUrl}
+                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image.bucket_name}/${image.storage_path}`}
                       alt={image.file_name}
-                      className={image.is_selected ? 'ring-2 ring-green-500' : ''}
+                      className="w-full"
                     />
                     <div className="flex gap-2">
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleDelete(image)}
-                        className="w-1/2"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </Button>
-                      <Button
-                        variant={image.is_selected ? "secondary" : "default"}
-                        onClick={() => handleSelect(image)}
-                        className="w-1/2"
-                        disabled={image.is_selected}
-                      >
-                        {image.is_selected ? 'Ausgewählt' : 'Auswählen'}
-                      </Button>
+                      {deletingImageId === image.id ? (
+                        <div className="flex gap-2 w-full">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => {
+                              handleDelete(image)
+                              setDeletingImageId(null)
+                            }}
+                          >
+                            Ja
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => setDeletingImageId(null)}
+                          >
+                            Nein
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => setDeletingImageId(image.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Löschen
+                          </Button>
+                          <Button
+                            variant={image.is_selected ? "secondary" : "default"}
+                            size="sm"
+                            className="w-1/2"
+                            onClick={() => handleSelect(image)}
+                          >
+                            {image.is_selected ? "Ausgewählt" : "Auswählen"}
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  </div>
-                )
-              })}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            
+            {/* Paging Controls für Landscape */}
+            <div className="flex justify-center gap-4 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setLandscapePage(p => Math.max(1, p - 1))}
+                disabled={landscapePage === 1}
+                className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Vorherige
+              </Button>
+              <span className="flex items-center px-4 py-2 rounded-md bg-gray-900/30 border border-gray-700 text-sm">
+                Seite {landscapePage} von {landscapePagesCount}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setLandscapePage(p => Math.min(landscapePagesCount, p + 1))}
+                disabled={landscapePage === landscapePagesCount}
+                className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
+              >
+                Nächste
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   )
 } 
