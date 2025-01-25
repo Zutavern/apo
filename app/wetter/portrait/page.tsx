@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
+import Image from 'next/image'
 
 // Keine Caching für aktuelle Daten
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
+
+// Konstanten für 4K Auflösung
+const PORTRAIT_WIDTH = 2160
+const PORTRAIT_HEIGHT = 3840
 
 export default async function WeatherPortrait() {
   // Supabase Client initialisieren
@@ -30,31 +35,21 @@ export default async function WeatherPortrait() {
       return <div>Kein Hintergrundbild ausgewählt</div>
     }
 
-    // Public URL des Bildes generieren
+    // Public URL mit Transformationsparametern generieren
     const { data: { publicUrl } } = supabase.storage
       .from(background.bucket_name)
       .getPublicUrl(background.storage_path)
 
     return (
-      <div 
-        style={{
-          width: '2160px',
-          height: '3840px',
-          backgroundColor: 'black',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        <img
+      <div className="relative w-screen h-screen bg-black flex items-center justify-center">
+        <Image
           src={publicUrl}
           alt="Wetter Hintergrund"
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain'
-          }}
+          width={PORTRAIT_WIDTH}
+          height={PORTRAIT_HEIGHT}
+          priority
+          className="max-h-screen w-auto"
+          quality={100}
         />
       </div>
     )
