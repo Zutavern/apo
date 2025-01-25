@@ -13,14 +13,40 @@ interface WeatherBackground {
   is_selected: boolean
 }
 
+interface WeatherData {
+  temperature_2m_max: number
+  temperature_2m_min: number
+  precipitation_sum: number
+  weather_code: number
+  time: string
+}
+
 export default function WeatherLandscape() {
   const supabase = createClientComponentClient()
   const [selectedImage, setSelectedImage] = useState<WeatherBackground | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
 
   useEffect(() => {
     loadSelectedImage()
+    loadWeatherData() // Initial Laden der Wetterdaten
+
+    // Aktualisiere die Zeit jede Sekunde
+    const timeTimer = setInterval(() => {
+      setCurrentDate(new Date())
+    }, 1000)
+
+    // Aktualisiere die Wetterdaten alle 15 Minuten
+    const weatherTimer = setInterval(() => {
+      loadWeatherData()
+    }, 900000) // 15 Minuten = 900000ms
+
+    return () => {
+      clearInterval(timeTimer)
+      clearInterval(weatherTimer)
+    }
   }, [])
 
   async function loadSelectedImage() {
@@ -42,6 +68,26 @@ export default function WeatherLandscape() {
     }
   }
 
+  async function loadWeatherData() {
+    try {
+      const response = await fetch('/api/weather/forecast/current')
+      const data = await response.json()
+      
+      if (data.success && data.data.daily) {
+        const today = data.data.daily
+        setWeatherData({
+          temperature_2m_max: today.temperature_2m_max[0],
+          temperature_2m_min: today.temperature_2m_min[0],
+          precipitation_sum: today.precipitation_sum[0],
+          weather_code: today.weather_code[0],
+          time: today.time[0]
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Wetterdaten:', error)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black">
@@ -54,6 +100,18 @@ export default function WeatherLandscape() {
     return <div className="min-h-screen bg-black" />
   }
 
+  const formattedDate = currentDate.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
+
+  const formattedTime = currentDate.toLocaleTimeString('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+
   return (
     <div className="relative min-h-screen bg-black">
       <Image
@@ -64,6 +122,43 @@ export default function WeatherLandscape() {
         priority
         onError={() => setImageError(true)}
       />
+      
+      {/* Wetter-Kachel */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="bg-black/70 backdrop-blur-sm p-8 rounded-lg text-white w-[30%] mx-4">
+          <h1 className="text-2xl md:text-3xl font-semibold mb-4 text-center">
+            Das Wetter heute in Hochenmösem
+          </h1>
+          <p className="text-xl text-center text-gray-300 mb-8">
+            am {formattedDate} um {formattedTime}
+          </p>
+          
+          {weatherData ? (
+            <div className="grid grid-cols-2 gap-6">
+              <div className="text-center">
+                <p className="text-base text-gray-400">Höchsttemperatur</p>
+                <p className="text-3xl font-bold">{weatherData.temperature_2m_max}°C</p>
+              </div>
+              <div className="text-center">
+                <p className="text-base text-gray-400">Tiefsttemperatur</p>
+                <p className="text-3xl font-bold">{weatherData.temperature_2m_min}°C</p>
+              </div>
+              <div className="text-center">
+                <p className="text-base text-gray-400">Niederschlag</p>
+                <p className="text-3xl font-bold">{weatherData.precipitation_sum} mm</p>
+              </div>
+              <div className="text-center">
+                <p className="text-base text-gray-400">Wetter-Code</p>
+                <p className="text-3xl font-bold">{weatherData.weather_code}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 text-xl">
+              Lade Wetterdaten...
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 } 
