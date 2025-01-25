@@ -31,17 +31,15 @@ export default function WeatherLandscape() {
 
   useEffect(() => {
     loadSelectedImage()
-    loadWeatherData() // Initial Laden der Wetterdaten
+    loadWeatherData()
 
-    // Aktualisiere die Zeit jede Sekunde
     const timeTimer = setInterval(() => {
       setCurrentDate(new Date())
     }, 1000)
 
-    // Aktualisiere die Wetterdaten alle 15 Minuten
     const weatherTimer = setInterval(() => {
       loadWeatherData()
-    }, 900000) // 15 Minuten = 900000ms
+    }, 900000)
 
     return () => {
       clearInterval(timeTimer)
@@ -112,22 +110,28 @@ export default function WeatherLandscape() {
     second: '2-digit'
   })
 
+  // 4K-optimierte Bild-URL
+  const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${selectedImage.bucket_name}/${selectedImage.storage_path}?width=3840&height=2160&resize=contain`
+
   return (
     <div className="relative min-h-screen bg-black">
       <Image
-        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${selectedImage.bucket_name}/${selectedImage.storage_path}`}
+        src={imageUrl}
         alt={selectedImage.file_name}
         fill
         className="object-contain"
-        priority
         onError={() => setImageError(true)}
+        priority
+        quality={100}
+        sizes="100vw"
+        unoptimized
       />
       
       {/* Wetter-Kachel */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="bg-black/70 backdrop-blur-sm p-8 rounded-lg text-white w-[30%] mx-4">
           <h1 className="text-2xl md:text-3xl font-semibold mb-4 text-center">
-            Das Wetter heute in Hochenmösem
+            Das Wetter heute in Hohenmölsen
           </h1>
           <p className="text-xl text-center text-gray-300 mb-8">
             am {formattedDate} um {formattedTime}
