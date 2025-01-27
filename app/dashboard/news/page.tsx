@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Image, Monitor, LayoutGrid, Columns, Rows, RefreshCw, ChevronRight, Trash2, X, Check } from 'lucide-react'
+import { Image, Monitor, LayoutGrid, Columns, Rows, RefreshCw, ChevronRight, Trash2, X, Check, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
@@ -19,10 +19,11 @@ type News = {
 }
 
 export default function NewsPage() {
-  const [layoutType, setLayoutType] = useState<LayoutType>('double')
+  const [layoutType, setLayoutType] = useState<LayoutType>('triple')
   const [news, setNews] = useState<News[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const supabase = createClientComponentClient()
 
@@ -81,6 +82,7 @@ export default function NewsPage() {
       if (current === 'double') return 'triple'
       return 'single'
     })
+    setCurrentPage(1)
   }
 
   const getLayoutIcon = () => {
@@ -108,11 +110,11 @@ export default function NewsPage() {
   const getGridClass = () => {
     switch (layoutType) {
       case 'single':
-        return 'grid gap-4'
+        return 'grid gap-4 grid-cols-1 max-w-4xl mx-auto'
       case 'double':
-        return 'grid gap-4 md:grid-cols-2'
+        return 'grid gap-4 grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto'
       case 'triple':
-        return 'grid gap-4 md:grid-cols-2 lg:grid-cols-3'
+        return 'grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto'
     }
   }
 
@@ -121,6 +123,32 @@ export default function NewsPage() {
     month: '2-digit',
     year: 'numeric'
   })
+
+  const getItemsPerPage = () => {
+    switch (layoutType) {
+      case 'single':
+        return 1
+      case 'double':
+        return 2
+      case 'triple':
+        return 3
+    }
+  }
+
+  // Paging-Funktionen
+  const itemsPerPage = getItemsPerPage()
+  const totalPages = Math.ceil(news.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentNews = news.slice(startIndex, endIndex)
+
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1))
+  }
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1))
+  }
 
   return (
     <div className="container mx-auto py-6">
@@ -182,77 +210,118 @@ export default function NewsPage() {
           </p>
         </div>
       ) : (
-        <div className={getGridClass()}>
-          {news.map((item) => (
-            <div
-              key={item.id}
-              className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden hover:border-blue-500 transition-colors"
-            >
-              {item.image && (
-                <div className="aspect-video w-full overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                </div>
-              )}
-              <div className="p-4">
-                <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                  <span className="px-2 py-1 bg-gray-700 rounded">
-                    {item.source}
-                  </span>
-                  <span>
-                    {new Date(item.published_at).toLocaleDateString('de-DE', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-                <h3 className="font-medium text-lg mb-2 line-clamp-2 text-gray-100">
-                  {item.title}
-                </h3>
-                <p className="text-gray-400 text-sm mb-4 line-clamp-3">
-                  {item.description}
-                </p>
-                <div className="flex items-center justify-end gap-2">
-                  {deleteId === item.id ? (
-                    <>
+        <>
+          <div className={getGridClass()}>
+            {currentNews.map((item) => (
+              <div
+                key={item.id}
+                className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden hover:border-blue-500 transition-colors"
+              >
+                {item.image && (
+                  <div className="aspect-video w-full overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                    <span className="px-2 py-1 bg-gray-700 rounded">
+                      {item.source}
+                    </span>
+                    <span>
+                      {new Date(item.published_at).toLocaleDateString('de-DE', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  <h3 className="font-medium text-lg mb-2 line-clamp-2 text-gray-100">
+                    {item.title}
+                  </h3>
+                  <p className="text-gray-400 text-sm mb-4 line-clamp-3">
+                    {item.description}
+                  </p>
+                  <div className="flex items-center justify-end gap-2">
+                    {deleteId === item.id ? (
+                      <>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          className="inline-flex items-center gap-2 text-green-500 hover:text-green-400"
+                          title="Ja, löschen"
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(null)}
+                          className="inline-flex items-center gap-2 text-red-500 hover:text-red-400"
+                          title="Nein, abbrechen"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        onClick={() => handleDelete(item)}
-                        className="inline-flex items-center gap-2 text-green-500 hover:text-green-400"
-                        title="Ja, löschen"
-                      >
-                        <Check className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(null)}
+                        onClick={() => setDeleteId(item.id)}
                         className="inline-flex items-center gap-2 text-red-500 hover:text-red-400"
-                        title="Nein, abbrechen"
+                        title="Nachricht löschen"
                       >
-                        <X className="h-5 w-5" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteId(item.id)}
-                      className="inline-flex items-center gap-2 text-red-500 hover:text-red-400"
-                      title="Nachricht löschen"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex justify-center gap-2">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Vorherige Seite"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`min-w-[2rem] h-8 rounded-lg ${
+                      currentPage === page
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Nächste Seite"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   )

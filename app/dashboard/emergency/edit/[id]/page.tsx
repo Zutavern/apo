@@ -75,8 +75,8 @@ export default function EditEmergencyPage({ params }: { params: Promise<{ id: st
 
       if (error) throw error
 
-      router.push('/dashboard/emergency')
       router.refresh()
+      router.back()
     } catch (error: any) {
       console.error('Error:', error)
       setMessage(`Fehler beim Speichern: ${error.message}`)

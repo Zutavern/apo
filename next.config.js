@@ -11,11 +11,11 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'pbpayybakxtpsrvbuhvm.supabase.co',
+        port: '',
         pathname: '/storage/v1/object/public/**',
       },
     ],
-    domains: ['pbpayybakxtpsrvbuhvm.supabase.co']
-  }
+  },
 }
 
 module.exports = nextConfig 

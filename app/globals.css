@@ -63,10 +63,36 @@ body {
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .pharmacy-card {
+    opacity: 0;
+    animation: fadeIn 1s ease-out forwards;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pharmacy-card[data-index="0"] { animation-delay: 0ms; }
+.pharmacy-card[data-index="1"] { animation-delay: 200ms; }
+.pharmacy-card[data-index="2"] { animation-delay: 400ms; }
+.pharmacy-card[data-index="3"] { animation-delay: 600ms; }
+.pharmacy-card[data-index="4"] { animation-delay: 800ms; }
+.pharmacy-card[data-index="5"] { animation-delay: 1000ms; }
+.pharmacy-card[data-index="6"] { animation-delay: 1200ms; }
+.pharmacy-card[data-index="7"] { animation-delay: 1400ms; }
+.pharmacy-card[data-index="8"] { animation-delay: 1600ms; }
+.pharmacy-card[data-index="9"] { animation-delay: 1800ms; }

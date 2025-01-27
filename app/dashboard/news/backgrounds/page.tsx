@@ -5,10 +5,16 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
-import { Trash2, ArrowLeft, Upload, ArrowRight, Loader2 } from 'lucide-react'
+import { Trash2, ArrowLeft, Upload, ArrowRight, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { Session } from '@supabase/supabase-js'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // Typen
 interface NewsBackground {
@@ -21,10 +27,17 @@ interface NewsBackground {
   is_selected: boolean
 }
 
+interface UploadFile {
+  file: File
+  preview: string
+  progress: number
+  error?: string
+}
+
 // Konstanten
 const PORTRAIT_BUCKET = 'bg-news-pt'
 const LANDSCAPE_BUCKET = 'bg-news-ls'
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_FILE_SIZE = 14 * 1024 * 1024 // 14MB
 const ITEMS_PER_PAGE = 3
 
 // Hilfskomponenten
@@ -34,17 +47,18 @@ const ImageUploadButton = ({
   isUploading 
 }: { 
   orientation: 'portrait' | 'landscape'
-  onUpload: (file: File) => Promise<void>
+  onUpload: (files: FileList) => void
   isUploading: boolean 
 }) => (
   <Button
     onClick={() => {
       const input = document.createElement('input')
       input.type = 'file'
+      input.multiple = true
       input.accept = 'image/*'
       input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0]
-        if (file) onUpload(file)
+        const files = (e.target as HTMLInputElement).files
+        if (files?.length) onUpload(files)
       }
       input.click()
     }}
@@ -56,7 +70,7 @@ const ImageUploadButton = ({
     ) : (
       <div className="flex items-center gap-2">
         <Upload className="h-4 w-4" />
-        <span>Hochladen</span>
+        <span>Bilder auswählen</span>
       </div>
     )}
   </Button>
@@ -137,11 +151,129 @@ export default function NewsBackgrounds() {
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
   const [portraitPage, setPortraitPage] = useState(1)
   const [landscapePage, setLandscapePage] = useState(1)
+  const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([])
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const [currentOrientation, setCurrentOrientation] = useState<'portrait' | 'landscape'>('portrait')
 
   // Bilder laden
   useEffect(() => {
     loadImages()
   }, [])
+
+  // Cleanup für Vorschau-URLs
+  useEffect(() => {
+    return () => {
+      uploadFiles.forEach(file => {
+        if (file.preview) URL.revokeObjectURL(file.preview)
+      })
+    }
+  }, [uploadFiles])
+
+  const handleFilesSelected = (files: FileList, orientation: 'portrait' | 'landscape') => {
+    const newFiles: UploadFile[] = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      progress: 0
+    }))
+    setUploadFiles(newFiles)
+    setCurrentOrientation(orientation)
+    setIsUploadDialogOpen(true)
+  }
+
+  const handleFileRemove = (index: number) => {
+    setUploadFiles(prev => {
+      const newFiles = [...prev]
+      URL.revokeObjectURL(newFiles[index].preview)
+      newFiles.splice(index, 1)
+      return newFiles
+    })
+  }
+
+  const handleUploadAll = async () => {
+    const setUploading = currentOrientation === 'portrait' 
+      ? setIsPortraitUploading 
+      : setIsLandscapeUploading
+
+    try {
+      setUploading(true)
+
+      for (let i = 0; i < uploadFiles.length; i++) {
+        const { file } = uploadFiles[i]
+
+        // Validierung
+        if (!file.type.startsWith('image/')) {
+          setUploadFiles(prev => {
+            const newFiles = [...prev]
+            newFiles[i] = { ...newFiles[i], error: 'Keine Bilddatei' }
+            return newFiles
+          })
+          continue
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+          setUploadFiles(prev => {
+            const newFiles = [...prev]
+            newFiles[i] = { ...newFiles[i], error: 'Datei zu groß (max. 14MB)' }
+            return newFiles
+          })
+          continue
+        }
+
+        const bucketName = currentOrientation === 'portrait' ? PORTRAIT_BUCKET : LANDSCAPE_BUCKET
+        const timestamp = Date.now()
+        const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+
+        try {
+          // Upload zur Storage
+          const { error: uploadError } = await supabase.storage
+            .from(bucketName)
+            .upload(fileName, file)
+
+          if (uploadError) throw uploadError
+
+          // Datenbank-Eintrag
+          const { error: dbError } = await supabase
+            .from('news_backgrounds')
+            .insert({
+              file_name: file.name,
+              bucket_name: bucketName,
+              orientation: currentOrientation,
+              storage_path: fileName,
+              is_selected: false
+            })
+
+          if (dbError) {
+            await supabase.storage.from(bucketName).remove([fileName])
+            throw dbError
+          }
+
+          // Update Progress
+          setUploadFiles(prev => {
+            const newFiles = [...prev]
+            newFiles[i] = { ...newFiles[i], progress: 100 }
+            return newFiles
+          })
+
+        } catch (error) {
+          setUploadFiles(prev => {
+            const newFiles = [...prev]
+            newFiles[i] = { ...newFiles[i], error: 'Upload fehlgeschlagen' }
+            return newFiles
+          })
+        }
+      }
+
+      await loadImages()
+      toast.success('Bilder erfolgreich hochgeladen')
+      setIsUploadDialogOpen(false)
+      setUploadFiles([])
+    } catch (error) {
+      console.error('Upload Fehler:', error)
+      toast.error('Fehler beim Hochladen der Bilder')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function loadImages() {
     try {
@@ -166,63 +298,6 @@ export default function NewsBackgrounds() {
     } catch (error) {
       console.error('Fehler beim Laden der Bilder:', error)
       toast.error('Fehler beim Laden der Bilder')
-    }
-  }
-
-  // Upload Handler
-  const handleUpload = async (file: File, orientation: 'portrait' | 'landscape') => {
-    const setUploading = orientation === 'portrait' 
-      ? setIsPortraitUploading 
-      : setIsLandscapeUploading
-
-    try {
-      setUploading(true)
-
-      // Validierung
-      if (!file.type.startsWith('image/')) {
-        toast.error('Bitte nur Bilddateien hochladen')
-        return
-      }
-
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error('Bild darf nicht größer als 5MB sein')
-        return
-      }
-
-      const bucketName = orientation === 'portrait' ? PORTRAIT_BUCKET : LANDSCAPE_BUCKET
-      const timestamp = Date.now()
-      const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-
-      // Upload zur Storage
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(fileName, file)
-
-      if (uploadError) throw uploadError
-
-      // Datenbank-Eintrag
-      const { error: dbError } = await supabase
-        .from('news_backgrounds')
-        .insert({
-          file_name: file.name,
-          bucket_name: bucketName,
-          orientation: orientation,
-          storage_path: fileName,
-          is_selected: false
-        })
-
-      if (dbError) {
-        await supabase.storage.from(bucketName).remove([fileName])
-        throw dbError
-      }
-
-      toast.success('Bild erfolgreich hochgeladen')
-      await loadImages()
-    } catch (error) {
-      console.error('Upload Fehler:', error)
-      toast.error('Fehler beim Hochladen des Bildes')
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -310,34 +385,129 @@ export default function NewsBackgrounds() {
   )
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="h-10 w-10"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Hintergründe</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Bitte laden Sie Hintergründe für die News Screens hoch und treffen Sie Ihre Auswahl
-            </p>
-          </div>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold text-gray-100">News Hintergründe</h1>
+        <Button
+          variant="outline"
+          onClick={() => router.back()}
+          className="bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Zurück
+        </Button>
       </div>
 
+      {/* Upload Dialog */}
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent className="bg-gray-900 text-gray-100 border-gray-800 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bilder hochladen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {uploadFiles.map((file, index) => (
+                <div key={index} className="relative group">
+                  <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-800 flex items-center justify-center">
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={file.preview}
+                        alt={file.file.name}
+                        fill
+                        className="object-contain p-2"
+                        sizes="(max-width: 768px) 50vw, 33vw"
+                      />
+                    </div>
+                    {file.error ? (
+                      <div className="absolute inset-0 bg-red-900/80 flex items-center justify-center p-2 text-center text-sm">
+                        {file.error}
+                      </div>
+                    ) : file.progress > 0 ? (
+                      <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                        <div className="h-1 w-20 bg-gray-700 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-300"
+                            style={{ width: `${file.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    onClick={() => handleFileRemove(index)}
+                    className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsUploadDialogOpen(false)
+                  setUploadFiles([])
+                }}
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const input = document.createElement('input')
+                  input.type = 'file'
+                  input.multiple = true
+                  input.accept = 'image/*'
+                  input.onchange = (e) => {
+                    const files = (e.target as HTMLInputElement).files
+                    if (files?.length) {
+                      const newFiles: UploadFile[] = Array.from(files).map(file => ({
+                        file,
+                        preview: URL.createObjectURL(file),
+                        progress: 0
+                      }))
+                      setUploadFiles(prev => [...prev, ...newFiles])
+                    }
+                  }
+                  input.click()
+                }}
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700"
+                disabled={isPortraitUploading || isLandscapeUploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Weitere Bilder
+              </Button>
+              <Button
+                onClick={handleUploadAll}
+                disabled={uploadFiles.length === 0 || isPortraitUploading || isLandscapeUploading}
+                className="bg-blue-500 hover:bg-blue-600"
+              >
+                {isPortraitUploading || isLandscapeUploading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Wird hochgeladen...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    <span>Alle hochladen</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Portrait Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Portrait Format</h2>
+      <section className="mb-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white">Portrait Hintergründe</h2>
           <ImageUploadButton
             orientation="portrait"
-            onUpload={file => handleUpload(file, 'portrait')}
+            onUpload={(files) => handleFilesSelected(files, 'portrait')}
             isUploading={isPortraitUploading}
           />
         </div>
@@ -351,7 +521,7 @@ export default function NewsBackgrounds() {
               input.accept = 'image/*'
               input.onchange = (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0]
-                if (file) handleUpload(file, 'portrait')
+                if (file) handleFilesSelected(new FileList([file]), 'portrait')
               }
               input.click()
             }} 
@@ -445,40 +615,38 @@ export default function NewsBackgrounds() {
       </section>
 
       {/* Landscape Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Landscape Format</h2>
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white">Landscape Hintergründe</h2>
           <ImageUploadButton
             orientation="landscape"
-            onUpload={file => handleUpload(file, 'landscape')}
+            onUpload={(files) => handleFilesSelected(files, 'landscape')}
             isUploading={isLandscapeUploading}
           />
         </div>
 
         {landscapeImages.length === 0 ? (
-          <EmptyState 
-            type="landscape"
-            onUpload={() => {
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.accept = 'image/*'
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0]
-                if (file) handleUpload(file, 'landscape')
-              }
-              input.click()
-            }}
-          />
+          <Card className="bg-gray-900/50 border-white/10 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <p className="text-lg text-gray-400 text-center">
+                Keine Landscape-Hintergründe vorhanden
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {paginatedLandscapeImages.map((image) => (
                 <Card key={image.id}>
                   <CardContent className="p-4 space-y-4">
-                    <SafeImage
-                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image.bucket_name}/${image.storage_path}`}
-                      alt={image.file_name}
-                    />
+                    <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden">
+                      <Image
+                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${image.bucket_name}/${image.storage_path}`}
+                        alt={image.file_name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="flex gap-2">
                       {deletingImageId === image.id ? (
                         <div className="flex gap-2 w-full">
@@ -530,29 +698,31 @@ export default function NewsBackgrounds() {
             </div>
             
             {/* Paging Controls für Landscape */}
-            <div className="flex justify-center gap-4 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setLandscapePage(p => Math.max(1, p - 1))}
-                disabled={landscapePage === 1}
-                className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Vorherige
-              </Button>
-              <span className="flex items-center px-4 py-2 rounded-md bg-gray-900/30 border border-gray-700 text-sm">
-                Seite {landscapePage} von {landscapePagesCount}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setLandscapePage(p => Math.min(landscapePagesCount, p + 1))}
-                disabled={landscapePage === landscapePagesCount}
-                className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
-              >
-                Nächste
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
+            {landscapePagesCount > 1 && (
+              <div className="flex justify-center gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setLandscapePage(p => Math.max(1, p - 1))}
+                  disabled={landscapePage === 1}
+                  className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Vorherige
+                </Button>
+                <span className="flex items-center px-4 py-2 rounded-md bg-gray-900/30 border border-gray-700 text-sm">
+                  Seite {landscapePage} von {landscapePagesCount}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setLandscapePage(p => Math.min(landscapePagesCount, p + 1))}
+                  disabled={landscapePage === landscapePagesCount}
+                  className="bg-gray-900/50 border-gray-700 hover:bg-gray-800 hover:border-gray-600 transition-colors duration-200"
+                >
+                  Nächste
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            )}
           </>
         )}
       </section>
