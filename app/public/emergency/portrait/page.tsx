@@ -125,7 +125,7 @@ export default function EmergencyPortrait() {
             {pharmacies.slice(0, 6).map((pharmacy, index) => (
               <div 
                 key={pharmacy.id} 
-                className="pharmacy-card bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-4 h-[140px] w-full shadow-lg"
+                className="pharmacy-card bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-4 h-[120px] w-[800px] max-w-full shadow-lg"
                 data-index={index}
               >
                 <div className="flex gap-4 h-full">
@@ -147,18 +147,20 @@ export default function EmergencyPortrait() {
                         <span className="text-gray-500">Telefon:</span> {pharmacy.phone}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="w-[200px] border-l border-gray-200 pl-4 flex flex-col justify-between">
+                    <div>
+                      <p className="text-xs text-gray-600">
+                        <span className="text-gray-500">Notdienstinfo:</span><br />
+                        <span className="line-clamp-3">{pharmacy.emergencyServiceText}</span>
+                      </p>
+                    </div>
                     <div className="flex justify-end">
                       <span className="inline-block px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
                         {pharmacy.distance}
                       </span>
                     </div>
-                  </div>
-
-                  <div className="w-[200px] border-l border-gray-200 pl-4">
-                    <p className="text-xs text-gray-600">
-                      <span className="text-gray-500">Notdienstinfo:</span><br />
-                      <span className="line-clamp-3">{pharmacy.emergencyServiceText}</span>
-                    </p>
                   </div>
                 </div>
               </div>
