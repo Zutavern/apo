@@ -111,8 +111,8 @@ export default function EmergencyPortrait() {
         />
       )}
 
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-[90%] max-w-[2000px] mx-auto" style={{ marginTop: '8vh' }}>
+      <div className="absolute inset-0 flex items-start justify-center">
+        <div className="w-[90%] max-w-[800px] mx-auto" style={{ marginTop: '8vh' }}>
           <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-black mb-6 xl:mb-8">
             Aktuelle Notdienste in Hohenmölsen am {new Date().toLocaleDateString('de-DE', {
               day: '2-digit',
@@ -125,40 +125,41 @@ export default function EmergencyPortrait() {
             {pharmacies.slice(0, 6).map((pharmacy, index) => (
               <div 
                 key={pharmacy.id} 
-                className="pharmacy-card bg-black/80 backdrop-blur-sm rounded-lg border border-white/10 p-4 sm:p-6 h-fit"
+                className="pharmacy-card bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-4 h-[140px] w-full shadow-lg"
                 data-index={index}
               >
-                <div className="flex gap-4 sm:gap-6">
-                  <div className="bg-white p-2 rounded-lg w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] flex items-center justify-center shrink-0">
+                <div className="flex gap-4 h-full">
+                  <div className="bg-gray-100 p-2 rounded-lg w-[60px] h-[60px] flex items-center justify-center shrink-0 shadow-sm">
                     <div 
                       dangerouslySetInnerHTML={{ __html: pharmacy.qrCode }} 
                       className="w-full h-full [&>svg]:w-full [&>svg]:h-full"
                     />
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-semibold text-white truncate">{pharmacy.name}</h3>
-                    <p className="text-xs sm:text-sm text-gray-300">
-                      {pharmacy.address.street}<br />
-                      {pharmacy.address.postalCode} {pharmacy.address.city}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-300">
-                      <span className="text-gray-400">Telefon:</span> {pharmacy.phone}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 truncate">{pharmacy.name}</h3>
+                      <p className="text-xs text-gray-600">
+                        {pharmacy.address.street}<br />
+                        {pharmacy.address.postalCode} {pharmacy.address.city}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        <span className="text-gray-500">Telefon:</span> {pharmacy.phone}
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <span className="inline-block px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
+                        {pharmacy.distance}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="w-[200px] border-l border-gray-200 pl-4">
+                    <p className="text-xs text-gray-600">
+                      <span className="text-gray-500">Notdienstinfo:</span><br />
+                      <span className="line-clamp-3">{pharmacy.emergencyServiceText}</span>
                     </p>
                   </div>
-                </div>
-
-                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10">
-                  <p className="text-xs sm:text-sm text-gray-300">
-                    <span className="text-gray-400">Notdienstinfo:</span><br />
-                    {pharmacy.emergencyServiceText}
-                  </p>
-                </div>
-
-                <div className="mt-3 sm:mt-4 flex justify-end">
-                  <span className="inline-block px-2 sm:px-3 py-1 bg-white/10 rounded-full text-xs sm:text-sm text-gray-300">
-                    {pharmacy.distance}
-                  </span>
                 </div>
               </div>
             ))}
