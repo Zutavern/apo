@@ -102,8 +102,7 @@ export default function EmergencyPortrait() {
           src={imageUrl}
           alt={selectedImage.file_name}
           fill
-          className="object-cover w-full h-full"
-          style={{ objectPosition: 'center' }}
+          className="object-contain"
           onError={() => setImageError(true)}
           priority
           quality={100}
@@ -112,7 +111,7 @@ export default function EmergencyPortrait() {
         />
       )}
 
-      <div className="absolute inset-0 flex items-start justify-center">
+      <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-[90%] max-w-[2000px] mx-auto" style={{ marginTop: '8vh' }}>
           <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-black mb-6 xl:mb-8">
             Aktuelle Notdienste in Hohenmölsen am {new Date().toLocaleDateString('de-DE', {
@@ -121,6 +120,7 @@ export default function EmergencyPortrait() {
               year: 'numeric'
             })}
           </h1>
+          
           <div className="grid grid-cols-1 gap-4">
             {pharmacies.slice(0, 6).map((pharmacy, index) => (
               <div 
