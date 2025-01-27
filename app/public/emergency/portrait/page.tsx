@@ -103,15 +103,17 @@ export default function EmergencyPortrait() {
           alt={selectedImage.file_name}
           fill
           className="object-cover w-full h-full"
+          style={{ objectPosition: 'center' }}
           onError={() => setImageError(true)}
           priority
           quality={100}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, (max-width: 1536px) 100vw, (max-width: 2560px) 100vw, 100vw"
+          sizes="100vw"
+          unoptimized
         />
       )}
 
-      <div className="relative z-10 min-h-screen pt-[200px] px-[200px] pb-[400px]">
-        <div className="flex flex-col w-full h-full">
+      <div className="absolute inset-0 flex items-start justify-center">
+        <div className="w-[90%] max-w-[2000px] mx-auto" style={{ marginTop: '8vh' }}>
           <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-black mb-6 xl:mb-8">
             Aktuelle Notdienste in Hohenmölsen am {new Date().toLocaleDateString('de-DE', {
               day: '2-digit',
@@ -119,23 +121,23 @@ export default function EmergencyPortrait() {
               year: 'numeric'
             })}
           </h1>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {pharmacies.map((pharmacy, index) => (
+          <div className="grid grid-cols-1 gap-4">
+            {pharmacies.slice(0, 6).map((pharmacy, index) => (
               <div 
                 key={pharmacy.id} 
-                className="pharmacy-card bg-black/80 backdrop-blur-sm rounded-lg border border-white/10 p-3 sm:p-4 h-fit"
+                className="pharmacy-card bg-black/80 backdrop-blur-sm rounded-lg border border-white/10 p-4 sm:p-6 h-fit"
                 data-index={index}
               >
-                <div className="flex gap-3 sm:gap-4">
-                  <div className="bg-white p-2 rounded-lg w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] flex items-center justify-center shrink-0">
+                <div className="flex gap-4 sm:gap-6">
+                  <div className="bg-white p-2 rounded-lg w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] flex items-center justify-center shrink-0">
                     <div 
                       dangerouslySetInnerHTML={{ __html: pharmacy.qrCode }} 
                       className="w-full h-full [&>svg]:w-full [&>svg]:h-full"
                     />
                   </div>
 
-                  <div className="space-y-1 flex-1 min-w-0">
-                    <h3 className="text-sm sm:text-base font-semibold text-white truncate">{pharmacy.name}</h3>
+                  <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-white truncate">{pharmacy.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-300">
                       {pharmacy.address.street}<br />
                       {pharmacy.address.postalCode} {pharmacy.address.city}
@@ -146,15 +148,15 @@ export default function EmergencyPortrait() {
                   </div>
                 </div>
 
-                <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10">
                   <p className="text-xs sm:text-sm text-gray-300">
                     <span className="text-gray-400">Notdienstinfo:</span><br />
                     {pharmacy.emergencyServiceText}
                   </p>
                 </div>
 
-                <div className="mt-2 sm:mt-3 flex justify-end">
-                  <span className="inline-block px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300">
+                <div className="mt-3 sm:mt-4 flex justify-end">
+                  <span className="inline-block px-2 sm:px-3 py-1 bg-white/10 rounded-full text-xs sm:text-sm text-gray-300">
                     {pharmacy.distance}
                   </span>
                 </div>

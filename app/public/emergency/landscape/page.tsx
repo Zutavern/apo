@@ -102,16 +102,17 @@ export default function EmergencyLandscape() {
           src={imageUrl}
           alt={selectedImage.file_name}
           fill
-          className="object-cover w-full h-full"
+          className="object-cover"
           onError={() => setImageError(true)}
           priority
           quality={100}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, (max-width: 1536px) 100vw, (max-width: 2560px) 100vw, 100vw"
+          sizes="100vw"
+          unoptimized
         />
       )}
 
-      <div className="relative z-10 min-h-screen pt-[200px] px-[200px] pb-[400px]">
-        <div className="flex flex-col w-full h-full">
+      <div className="absolute inset-0 flex items-start justify-center">
+        <div className="w-[90%] max-w-[2000px] mx-auto" style={{ marginTop: '8vh' }}>
           <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-black mb-6 xl:mb-8">
             Aktuelle Notdienste in Hohenmölsen am {new Date().toLocaleDateString('de-DE', {
               day: '2-digit',
@@ -120,7 +121,7 @@ export default function EmergencyLandscape() {
             })}
           </h1>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pharmacies.map((pharmacy, index) => (
+            {pharmacies.slice(0, 6).map((pharmacy, index) => (
               <div 
                 key={pharmacy.id} 
                 className="pharmacy-card bg-black/80 backdrop-blur-sm rounded-lg border border-white/10 p-4 sm:p-6 h-fit"
