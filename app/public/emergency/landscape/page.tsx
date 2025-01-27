@@ -102,24 +102,24 @@ export default function EmergencyLandscape() {
           src={imageUrl}
           alt={selectedImage.file_name}
           fill
-          className="object-cover"
+          className="object-cover w-full h-full"
           onError={() => setImageError(true)}
           priority
           quality={100}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, (max-width: 1280px) 100vw, 100vw"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, (max-width: 1536px) 100vw, (max-width: 2560px) 100vw, 100vw"
         />
       )}
 
-      <div className="relative z-10 container mx-auto p-4 sm:p-6 md:p-8 pb-[200px] min-h-screen flex flex-col">
-        <div className="w-[120%] -translate-x-[10%] flex flex-col px-[calc(10%/2.4)]">
-          <h1 className="text-2xl sm:text-3xl font-bold text-black mb-8">
+      <div className="relative z-10 min-h-screen pt-[200px] px-[200px] pb-[400px]">
+        <div className="flex flex-col w-full h-full">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-black mb-6 xl:mb-8">
             Aktuelle Notdienste in Hohenmölsen am {new Date().toLocaleDateString('de-DE', {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric'
             })}
           </h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 gap-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pharmacies.map((pharmacy, index) => (
               <div 
                 key={pharmacy.id} 
