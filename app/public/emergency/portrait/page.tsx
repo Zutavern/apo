@@ -35,6 +35,7 @@ export default function EmergencyPortrait() {
   const supabase = createClientComponentClient()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(false)
+  const [displayedPharmacies, setDisplayedPharmacies] = useState<Pharmacy[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -42,6 +43,14 @@ export default function EmergencyPortrait() {
       loadPharmacies()
     ]).finally(() => setIsLoading(false))
   }, [])
+
+  useEffect(() => {
+    // Wenn Apotheken geladen sind, initialisiere displayedPharmacies
+    if (pharmacies.length > 0) {
+      // Dupliziere die ersten 8 Apotheken am Ende für nahtlosen Übergang
+      setDisplayedPharmacies([...pharmacies, ...pharmacies.slice(0, 8)])
+    }
+  }, [pharmacies])
 
   useEffect(() => {
     // Start auto-scroll nach 10 Sekunden
@@ -53,10 +62,17 @@ export default function EmergencyPortrait() {
   }, [])
 
   useEffect(() => {
-    if (!autoScrollEnabled || pharmacies.length <= 6) return
+    if (!autoScrollEnabled || pharmacies.length <= 8) return
 
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % Math.max(0, pharmacies.length - 5))
+      setCurrentIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1
+        // Wenn wir am Ende der Original-Liste angekommen sind, springe zurück zum Anfang
+        if (nextIndex >= pharmacies.length) {
+          return 0
+        }
+        return nextIndex
+      })
     }, 5000) // Scroll alle 5 Sekunden zur nächsten Karte
 
     return () => clearInterval(interval)
@@ -142,7 +158,7 @@ export default function EmergencyPortrait() {
             })}
           </h1>
           
-          <div className="grid grid-cols-1 gap-4 h-[1180px] overflow-hidden relative mb-6">
+          <div className="grid grid-cols-1 gap-4 h-[1244px] overflow-hidden relative mb-6">
             <div 
               className={`flex flex-col gap-4 transition-transform duration-1000 ease-in-out ${
                 autoScrollEnabled ? "transform" : ""
@@ -151,9 +167,9 @@ export default function EmergencyPortrait() {
                 transform: autoScrollEnabled ? `translateY(-${currentIndex * (140 + 16)}px)` : 'none'
               }}
             >
-              {pharmacies.map((pharmacy, index) => (
+              {displayedPharmacies.map((pharmacy, index) => (
                 <div 
-                  key={pharmacy.id} 
+                  key={`${pharmacy.id}-${index}`}
                   className="pharmacy-card bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-4 h-[140px] w-full shadow-lg"
                   data-index={index}
                 >
