@@ -1,12 +1,27 @@
 'use client'
 
-import { ArrowLeft, RefreshCw, Map, Rows, Columns, LayoutGrid } from 'lucide-react'
+import { 
+  Home, 
+  Calendar, 
+  Image as ImageIcon, 
+  AlertTriangle,
+  LogOut,
+  Settings,
+  RefreshCw,
+  Map,
+  Rows,
+  Columns,
+  LayoutGrid,
+  XCircle,
+  ArrowLeft
+} from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import ReactDOM from 'react-dom'
 import QRCode from 'qrcode'
+import { Button } from '@/components/ui/button'
 
 interface Pharmacy {
   Position: string
@@ -23,17 +38,46 @@ interface Pharmacy {
 
 type LayoutType = 'single' | 'double' | 'triple'
 
-const supabase = createClientComponentClient()
-
 export default function EmergencyApiPage() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastRunDate, setLastRunDate] = useState<string | null>(null)
   const [layoutType, setLayoutType] = useState<LayoutType>('triple')
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
-    fetchPharmacyData()
+    const loadInitialData = async () => {
+      try {
+        const { data: dbData, error: dbError } = await supabase
+          .from('current_pharmacy_data')
+          .select('*')
+          .order('distance')
+
+        if (dbError) throw dbError
+
+        if (dbData && dbData.length > 0) {
+          const pharmacyData = dbData.map(item => ({
+            Position: item.position,
+            Apothekenname: item.name,
+            Notdiensttext: item.emergency_service_text,
+            Strasse: item.street,
+            PLZ: item.postal_code,
+            Ort: item.city,
+            Telefon: item.phone,
+            Entfernung: item.distance,
+            maps_url: item.maps_url,
+            qr_code_svg: item.qr_code_svg
+          }))
+          setPharmacies(pharmacyData)
+          setLastRunDate(new Date(dbData[0].task_created_at).toLocaleString('de-DE'))
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der initialen Daten:', error)
+      }
+    }
+
+    loadInitialData()
   }, [])
 
   const handleLayoutToggle = () => {
@@ -84,8 +128,6 @@ export default function EmergencyApiPage() {
 
   const savePharmacyData = async (pharmacies: any[], robotId: string, robotName: string, taskId: string, taskCreatedAt: string) => {
     try {
-      const supabase = createClientComponentClient();
-      
       console.log('Starte Speichervorgang...');
       console.log('Anzahl der Apotheken:', pharmacies.length);
       
@@ -162,36 +204,7 @@ export default function EmergencyApiPage() {
     setIsLoading(true)
     setError(null)
 
-    // Aktualisiere den Zeitstempel beim Start des Updates
-    const currentTime = new Date().toLocaleString('de-DE');
-    setLastRunDate(currentTime);
-
     try {
-      // Versuche zuerst, die Daten aus der Datenbank zu laden
-      const { data: dbData, error: dbError } = await supabase
-        .from('current_pharmacy_data')
-        .select('*')
-        .order('distance');
-
-      if (dbData && dbData.length > 0) {
-        // Konvertiere die Datenbank-Daten in das Pharmacy-Format
-        const pharmacyData = dbData.map(item => ({
-          Position: item.position,
-          Apothekenname: item.name,
-          Notdiensttext: item.emergency_service_text,
-          Strasse: item.street,
-          PLZ: item.postal_code,
-          Ort: item.city,
-          Telefon: item.phone,
-          Entfernung: item.distance,
-          maps_url: item.maps_url,
-          qr_code_svg: item.qr_code_svg
-        }));
-        
-        setPharmacies(pharmacyData);
-        return;
-      }
-
       const apiKey = process.env.NEXT_PUBLIC_BROWSE_AI_API_KEY
       if (!apiKey) {
         throw new Error('API-Schlüssel fehlt')
@@ -219,7 +232,7 @@ export default function EmergencyApiPage() {
       }
 
       // Hole die letzten erfolgreichen Tasks
-      const tasksResponse = await fetch(`https://api.browse.ai/v2/robots/${notdienstRobot.id}/tasks?status=successful&pageSize=10&sort=-createdAt`, {
+      const tasksResponse = await fetch(`https://api.browse.ai/v2/robots/${notdienstRobot.id}/tasks?status=successful&pageSize=1&sort=-createdAt`, {
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Accept": "application/json"
@@ -231,8 +244,7 @@ export default function EmergencyApiPage() {
       }
 
       const tasksData = await tasksResponse.json()
-      console.log('Tasks Response:', JSON.stringify(tasksData, null, 2))
-
+      
       if (!tasksData.result?.robotTasks?.items?.[0]?.capturedLists?.Notdienst) {
         throw new Error('Keine Apotheken-Daten gefunden')
       }
@@ -249,30 +261,30 @@ export default function EmergencyApiPage() {
         Telefon: pharmacy.Telefon,
         Entfernung: pharmacy.Entfernung
       }))
-      const runDate = new Date(latestTask.createdAt).toLocaleString('de-DE')
-      setLastRunDate(runDate)
-      console.log('Gefundene Apotheken:', pharmacyData.length)
-      console.log('Letzter Run:', runDate)
-      
+
       // Sortiere nach Entfernung
       const sortedPharmacies = pharmacyData.sort((a, b) => {
         const distA = parseFloat(a.Entfernung.split(': ')[1].split(' ')[0])
         const distB = parseFloat(b.Entfernung.split(': ')[1].split(' ')[0])
         return distA - distB
       })
-      
-      const robotId = notdienstRobot.id
-      const robotName = notdienstRobot.name
-      const taskId = latestTask.id
-      const taskCreatedAt = latestTask.createdAt
 
-      // Daten in Supabase speichern
-      await savePharmacyData(sortedPharmacies, robotId, robotName, taskId, taskCreatedAt)
+      // Speichere in Datenbank
+      await savePharmacyData(
+        sortedPharmacies,
+        notdienstRobot.id,
+        notdienstRobot.name,
+        latestTask.id,
+        latestTask.createdAt
+      )
 
       setPharmacies(sortedPharmacies)
-    } catch (err) {
-      console.error('Fehler beim Abrufen der Daten:', err)
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Daten')
+      const currentTime = new Date().toLocaleString('de-DE')
+      setLastRunDate(currentTime)
+      setError(null)
+    } catch (error: any) {
+      console.error('Fehler beim Abrufen der Daten:', error)
+      setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten')
     } finally {
       setIsLoading(false)
     }
@@ -297,23 +309,32 @@ export default function EmergencyApiPage() {
             {getLayoutIcon()}
           </button>
           <button
-            onClick={fetchPharmacyData}
+            onClick={fetchPharmacyData} 
             disabled={isLoading}
-            className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Neue Daten abrufen"
           >
             <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Daten abrufen</span>
           </button>
         </div>
       </div>
 
-      <div className="space-y-6">
-        {error && (
-          <div className="p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
-            {error}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <XCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {error}
+              </p>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
+      <div className="space-y-6">
         {pharmacies.length > 0 && (
           <>
             <div className="text-gray-300 mb-4">

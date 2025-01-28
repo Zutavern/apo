@@ -122,13 +122,13 @@ export default function EmergencyPortrait() {
           </h1>
           
           <div className="grid grid-cols-1 gap-4">
-            {pharmacies.slice(0, 8).map((pharmacy, index) => (
+            {pharmacies.slice(0, 6).map((pharmacy, index) => (
               <div 
                 key={pharmacy.id} 
-                className="pharmacy-card bg-white rounded-lg border border-gray-200 p-4 flex flex-col shadow-sm"
+                className="pharmacy-card bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-4 h-[140px] w-full shadow-lg"
                 data-index={index}
               >
-                <div className="flex items-start gap-4">
+                <div className="flex gap-4 h-full">
                   <div className="bg-gray-100 p-2 rounded-lg w-[60px] h-[60px] flex items-center justify-center shrink-0 shadow-sm">
                     <div 
                       dangerouslySetInnerHTML={{ __html: pharmacy.qrCode }} 
@@ -136,27 +136,30 @@ export default function EmergencyPortrait() {
                     />
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 truncate">{pharmacy.name}</h3>
-                    <p className="text-xs text-gray-600 mt-1">
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 truncate">{pharmacy.name}</h3>
+                      <p className="text-xs text-gray-600">
                       {pharmacy.address.street}<br />
                       {pharmacy.address.postalCode} {pharmacy.address.city}
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600">
                       <span className="text-gray-500">Telefon:</span> {pharmacy.phone}
                     </p>
                   </div>
+                    <div className="flex justify-end">
+                      <span className="inline-block px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
+                        {pharmacy.distance}
+                      </span>
+                    </div>
                 </div>
 
-                <div className="mt-2 text-xs text-gray-600">
+                  <div className="w-[200px] border-l border-gray-200 pl-4">
+                      <p className="text-xs text-gray-600">
                   <span className="text-gray-500">Notdienstinfo:</span><br />
-                  {pharmacy.emergencyServiceText}
+                        <span className="line-clamp-3">{pharmacy.emergencyServiceText}</span>
+                      </p>
                 </div>
-                
-                <div className="mt-2 flex justify-end">
-                  <span className="text-xs text-gray-600">
-                    Entfernung: {pharmacy.distance}
-                  </span>
                 </div>
               </div>
             ))}
