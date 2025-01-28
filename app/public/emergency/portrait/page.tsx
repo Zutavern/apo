@@ -142,7 +142,7 @@ export default function EmergencyPortrait() {
             })}
           </h1>
           
-          <div className="grid grid-cols-1 gap-4 h-[884px] overflow-hidden relative">
+          <div className="grid grid-cols-1 gap-4 h-[1180px] overflow-hidden relative mb-6">
             <div 
               className={`flex flex-col gap-4 transition-transform duration-1000 ease-in-out ${
                 autoScrollEnabled ? "transform" : ""
@@ -195,6 +195,10 @@ export default function EmergencyPortrait() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="text-lg sm:text-xl font-medium text-black text-right">
+            Es haben gerade {pharmacies.length} Apotheken innerhalb von 25 km geöffnet.
           </div>
         </div>
       </div>
