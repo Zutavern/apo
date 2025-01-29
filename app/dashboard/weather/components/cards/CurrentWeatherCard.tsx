@@ -1,146 +1,216 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Cloud, Thermometer, Wind, Droplets, Sun, Moon, CloudRain } from 'lucide-react'
-import { WeatherData } from '../../types'
-import { DataSourceIndicator } from '../common/DataSourceIndicator'
-import { getWeatherDescription } from '../../utils'
+'use client'
 
-interface CurrentWeatherCardProps {
-  weatherData: WeatherData
-  dataSource: 'api' | 'db'
-  onSourceToggle?: () => void
-  isLoading?: boolean
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Cloud, Droplets, Gauge, Sun, SunDim, SunMedium, SunMoon, Umbrella, Wind } from 'lucide-react'
+import { getWeatherIcon } from '@/lib/weather/icons'
+import { Switch } from '@/components/ui/switch'
+
+interface CurrentWeatherData {
+  temperature_2m: number
+  relative_humidity_2m: number
+  apparent_temperature: number
+  precipitation: number
+  weather_code: number
+  surface_pressure: number
+  wind_speed_10m: number
+  wind_direction_10m: number
+  is_day: boolean
+  uv_index: number
+  sunrise: string
+  sunset: string
 }
 
-export function CurrentWeatherCard({ 
-  weatherData, 
-  dataSource, 
-  onSourceToggle,
-  isLoading = false 
-}: CurrentWeatherCardProps) {
+type LayoutType = 'single' | 'double' | 'triple'
 
-  if (!weatherData?.current) {
+interface CurrentWeatherCardProps {
+  layout?: LayoutType
+}
+
+export function CurrentWeatherCard({ layout = 'single' }: CurrentWeatherCardProps) {
+  const [weatherData, setWeatherData] = useState<CurrentWeatherData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isToggled, setIsToggled] = useState(false)
+
+  useEffect(() => {
+    async function fetchWeatherData() {
+      try {
+        const response = await fetch('/api/weather/current')
+        if (!response.ok) {
+          throw new Error('Fehler beim Laden der Wetterdaten')
+        }
+        const data = await response.json()
+        if (data.success) {
+          setWeatherData(data.data)
+        } else {
+          throw new Error(data.error || 'Fehler beim Laden der Wetterdaten')
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchWeatherData()
+  }, [])
+
+  if (isLoading) {
     return (
-      <Card className="bg-gray-900 border-gray-800">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-base font-semibold text-gray-200">Aktuelles Wetter</CardTitle>
-          <DataSourceIndicator 
-            source={dataSource} 
-            onToggle={onSourceToggle}
-            disabled={isLoading}
-          />
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-gray-400 py-4">
-            Keine Wetterdaten verfügbar
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center min-h-[200px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300" />
           </div>
         </CardContent>
       </Card>
     )
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex justify-center items-center min-h-[200px] text-red-500">
+            {error}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!weatherData) return null
+
+  const WeatherIcon = getWeatherIcon(weatherData.weather_code)
+
+  // Formatiere Sonnenauf- und -untergangszeiten
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  // UV-Index Warnstufe
+  const getUVWarningColor = (uvIndex: number) => {
+    if (uvIndex >= 8) return 'text-red-500'
+    if (uvIndex >= 6) return 'text-orange-500'
+    if (uvIndex >= 3) return 'text-yellow-500'
+    return 'text-green-500'
+  }
+
+  // Windrichtung in Text
+  const getWindDirection = (degrees: number) => {
+    const directions = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW']
+    const index = Math.round(degrees / 45) % 8
+    return directions[index]
+  }
+
+  // Grid-Layout basierend auf dem Layout-Typ
+  const getGridClass = () => {
+    switch (layout) {
+      case 'single':
+        return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+      case 'double':
+        return 'grid-cols-1 md:grid-cols-2'
+      case 'triple':
+        return 'grid-cols-1 md:grid-cols-2'
+      default:
+        return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+    }
+  }
+
   return (
-    <Card className="bg-gray-900 border-gray-800">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-base font-semibold text-gray-200">Aktuelles Wetter</CardTitle>
-        <DataSourceIndicator 
-          source={dataSource} 
-          onToggle={onSourceToggle}
-          disabled={isLoading}
+        <CardTitle>Aktuelles Wetter in Hohenmölsen</CardTitle>
+        <Switch
+          checked={isToggled}
+          onCheckedChange={setIsToggled}
+          className="data-[state=checked]:bg-blue-500"
         />
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
-          <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-4 border border-gray-800">
-            <div className="flex items-center space-x-4">
-              <Cloud className="h-8 w-8 text-blue-400" />
-              <div>
-                <p className="text-2xl font-bold text-gray-100">
-                  {(weatherData.current.temperature_2m ?? 0).toFixed(1)}°C
-                </p>
-                <p className="text-sm text-gray-400">
-                  {getWeatherDescription(weatherData.current.weather_code ?? 0)}
-                </p>
+        <div className={`grid ${getGridClass()} gap-6`}>
+          {/* Temperatur und Wetter-Icon */}
+          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-4">
+            <WeatherIcon className="h-16 w-16 text-blue-500" />
+            <div className="text-4xl font-bold text-black">
+              {weatherData.temperature_2m.toFixed(1)}°C
+            </div>
+            <div className="text-sm text-gray-400">
+              Gefühlt wie {weatherData.apparent_temperature.toFixed(1)}°C
+            </div>
+          </div>
+
+          {/* Luftfeuchtigkeit und Niederschlag */}
+          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-8">
+            <div className="flex flex-col items-center space-y-2">
+              <Droplets className="h-8 w-8 text-blue-500" />
+              <div className="text-2xl font-semibold text-black">
+                {weatherData.relative_humidity_2m}%
+              </div>
+              <div className="text-sm text-gray-400">
+                Luftfeuchtigkeit
+              </div>
+            </div>
+            <div className="flex flex-col items-center space-y-2">
+              <Umbrella className="h-8 w-8 text-blue-500" />
+              <div className="text-2xl font-semibold text-black">
+                {weatherData.precipitation.toFixed(1)} mm
+              </div>
+              <div className="text-sm text-gray-400">
+                Niederschlag
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col space-y-1 bg-gray-800/50 rounded-lg p-3 border border-gray-800">
-              <span className="text-xs text-gray-400">Gefühlt</span>
-              <div className="flex items-center space-x-2">
-                <Thermometer className="h-4 w-4 text-red-400" />
-                <span className="text-sm font-medium text-gray-200">
-                  {(weatherData.current.apparent_temperature ?? 0).toFixed(1)}°C
-                </span>
+
+          {/* Luftdruck und UV-Index */}
+          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-8">
+            <div className="flex flex-col items-center space-y-2">
+              <Gauge className="h-8 w-8 text-blue-500" />
+              <div className="text-2xl font-semibold text-black">
+                {weatherData.surface_pressure.toFixed(0)} hPa
+              </div>
+              <div className="text-sm text-gray-400">
+                Luftdruck
               </div>
             </div>
-            <div className="flex flex-col space-y-1 bg-gray-800/50 rounded-lg p-3 border border-gray-800">
-              <span className="text-xs text-gray-400">Wind</span>
-              <div className="flex items-center space-x-2">
-                <Wind className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-medium text-gray-200">
-                  {(weatherData.current.wind_speed_10m ?? 0).toFixed(1)} km/h
-                </span>
+            <div className="flex flex-col items-center space-y-2">
+              <SunMedium className={`h-8 w-8 ${getUVWarningColor(weatherData.uv_index)}`} />
+              <div className={`text-2xl font-semibold ${getUVWarningColor(weatherData.uv_index)}`}>
+                {weatherData.uv_index.toFixed(1)}
               </div>
-            </div>
-            <div className="flex flex-col space-y-1 bg-gray-800/50 rounded-lg p-3 border border-gray-800">
-              <span className="text-xs text-gray-400">Luftfeuchte</span>
-              <div className="flex items-center space-x-2">
-                <Droplets className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.relative_humidity_2m ?? 0}%
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-col space-y-1 bg-gray-800/50 rounded-lg p-3 border border-gray-800">
-              <span className="text-xs text-gray-400">Niederschlag</span>
-              <div className="flex items-center space-x-2">
-                <CloudRain className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.precipitation ?? 0} mm
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-col space-y-1 bg-gray-800/50 rounded-lg p-3 border border-gray-800">
-              <span className="text-xs text-gray-400">UV-Index</span>
-              <div className="flex items-center space-x-2">
-                <Sun className="h-4 w-4 text-yellow-400" />
-                <span className={`text-sm font-medium px-2 py-0.5 rounded ${
-                  (weatherData.current.uv_index ?? 0) <= 2 ? 'bg-green-500/20 text-green-400' :
-                  (weatherData.current.uv_index ?? 0) <= 5 ? 'bg-yellow-500/20 text-yellow-400' :
-                  (weatherData.current.uv_index ?? 0) <= 7 ? 'bg-orange-500/20 text-orange-400' :
-                  'bg-red-500/20 text-red-400'
-                }`}>
-                  {(weatherData.current.uv_index ?? 0).toFixed(1)}
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-col space-y-1 bg-gray-800/50 rounded-lg p-3 border border-gray-800">
-              <span className="text-xs text-gray-400">Luftdruck</span>
-              <div className="flex items-center space-x-2">
-                <Wind className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-medium text-gray-200">
-                  {weatherData.current.pressure_msl ?? 0} hPa
-                </span>
+              <div className="text-sm text-gray-400">
+                UV-Index
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-800">
-            <div className="flex items-center space-x-2">
-              {weatherData.current.is_day ? (
-                <Sun className="h-4 w-4 text-yellow-400" />
-              ) : (
-                <Moon className="h-4 w-4 text-blue-300" />
-              )}
-              <span className="text-sm text-gray-200">
-                {weatherData.current.is_day ? 'Tag' : 'Nacht'}
-              </span>
+
+          {/* Wind und Sonnenzeiten */}
+          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-8">
+            <div className="flex flex-col items-center space-y-2">
+              <Wind className="h-8 w-8 text-blue-500" />
+              <div className="text-2xl font-semibold text-black">
+                {weatherData.wind_speed_10m.toFixed(1)} km/h
+              </div>
+              <div className="text-sm text-gray-400">
+                Wind aus {getWindDirection(weatherData.wind_direction_10m)} ({weatherData.wind_direction_10m}°)
+              </div>
             </div>
-            <span className="text-xs text-gray-400">
-              {weatherData.current.is_day ? 
-                `Sonnenuntergang: ${new Date(weatherData.daily.sunset[0] ?? new Date()).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` :
-                `Sonnenaufgang: ${new Date(weatherData.daily.sunrise[0] ?? new Date()).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
-              }
-            </span>
+            <div className="flex flex-col items-center space-y-2">
+              <SunMoon className="h-8 w-8 text-blue-500" />
+              <div className="text-base font-medium text-black">
+                ↑ {formatTime(weatherData.sunrise)}
+              </div>
+              <div className="text-base font-medium text-black">
+                ↓ {formatTime(weatherData.sunset)}
+              </div>
+              <div className="text-sm text-gray-400">
+                Sonnenauf-/untergang
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>

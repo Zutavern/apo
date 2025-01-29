@@ -1,4 +1,9 @@
+'use client'
+
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface DataSourceIndicatorProps {
   source: 'api' | 'db'
@@ -7,6 +12,8 @@ interface DataSourceIndicatorProps {
 }
 
 export function DataSourceIndicator({ source, onToggle, disabled = false }: DataSourceIndicatorProps) {
+  const router = useRouter()
+
   return (
     <div className="flex items-center gap-2">
       <div
@@ -21,6 +28,14 @@ export function DataSourceIndicator({ source, onToggle, disabled = false }: Data
         disabled={disabled}
         className="data-[state=checked]:bg-blue-400 data-[state=unchecked]:bg-gray-700"
       />
+        <Button
+          variant="ghost"
+          size="icon"
+        onClick={() => router.push('/dashboard/weather/update')}
+          className="text-gray-400 hover:text-gray-200"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
     </div>
   )
 } 

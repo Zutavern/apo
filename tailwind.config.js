@@ -46,10 +46,37 @@ module.exports = {
         'fade-in': {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        'fade-out': {
+          '0%': { opacity: '1', transform: 'translateY(0)' },
+          '100%': { opacity: '0', transform: 'translateY(-10px)' }
+        },
+        'fade-in-up': {
+          '0%': { 
+            opacity: '0',
+            transform: 'translateY(280px)'
+          },
+          '100%': {
+            opacity: '1',
+            transform: 'translateY(0)'
+          }
+        },
+        'fade-out-up': {
+          '0%': {
+            opacity: '1',
+            transform: 'translateY(0)'
+          },
+          '100%': {
+            opacity: '0',
+            transform: 'translateY(-280px)'
+          }
         }
       },
       animation: {
-        'fade-in': 'fade-in 0.5s ease-out forwards'
+        'fade-in': 'fade-in 0.5s ease-out forwards',
+        'fade-out': 'fade-out 0.5s ease-out forwards',
+        'fade-in-up': 'fade-in-up 1s ease-out forwards',
+        'fade-out-up': 'fade-out-up 1s ease-out forwards'
       }
     },
   },

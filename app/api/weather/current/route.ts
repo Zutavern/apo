@@ -1,37 +1,35 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Fehlende Umgebungsvariablen für Supabase')
+const API_URL = 'https://api.open-meteo.com/v1/forecast'
+const HOHENMOLSEN_COORDS = {
+  latitude: 51.1667,
+  longitude: 12.0833
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 export async function GET() {
   try {
-    const { data: weatherData, error } = await supabase
-      .from('current_weather')
-      .select('*')
-      .order('last_updated', { ascending: false })
-      .limit(1)
-      .single()
+    const response = await fetch(
+      `${API_URL}?latitude=${HOHENMOLSEN_COORDS.latitude}&longitude=${HOHENMOLSEN_COORDS.longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,is_day,uv_index&daily=sunrise,sunset&timezone=Europe/Berlin`
+    )
 
-    if (error) {
-      console.error('Database Error:', error)
-      return NextResponse.json(
-        { error: 'Fehler beim Laden der Wetterdaten' },
-        { status: 500 }
-      )
+    if (!response.ok) {
+      throw new Error('Fehler beim Abrufen der Wetterdaten')
     }
 
-    return NextResponse.json(weatherData)
-  } catch (err) {
-    console.error('Server Error:', err)
+    const data = await response.json()
+
+    // Kombiniere current und daily Daten
+    const combinedData = {
+      ...data.current,
+      sunrise: data.daily.sunrise[0],
+      sunset: data.daily.sunset[0]
+    }
+
+    return NextResponse.json({ success: true, data: combinedData })
+  } catch (error) {
+    console.error('Fehler in /api/weather/current:', error)
     return NextResponse.json(
-      { error: 'Ein interner Serverfehler ist aufgetreten' },
+      { success: false, error: 'Fehler beim Abrufen der Wetterdaten' },
       { status: 500 }
     )
   }

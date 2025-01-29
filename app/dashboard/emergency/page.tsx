@@ -2,19 +2,28 @@
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { RefreshCw, Image as ImageIcon, Monitor, Table2, LayoutGrid, Columns, Rows } from 'lucide-react'
+import { RefreshCw, Image as ImageIcon, Monitor, Table2, LayoutGrid, Columns, Rows, Map } from 'lucide-react'
 import Link from 'next/link'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface Pharmacy {
   id: string
-  name: string
-  street: string
-  postal_code: string
-  city: string
-  phone: string
-  distance: string
-  emergency_service_text: string
-  qr_code_svg: string
+  robot_id: string
+  robot_name: string
+  task_id: string
+  Position: string | null
+  Apothekenname: string
+  Notdiensttext: string | null
+  Strasse: string | null
+  PLZ: string | null
+  Ort: string | null
+  Telefon: string | null
+  Entfernung: string | null
+  distance_value: number | null
+  maps_url: string | null
+  qr_code_url: string | null
+  qr_code_svg: string | null
+  last_updated: string | null
 }
 
 type LayoutType = 'table' | 'single' | 'double' | 'triple'
@@ -23,7 +32,9 @@ export default function EmergencyPage() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const [layoutType, setLayoutType] = useState<LayoutType>('table')
+  const [layoutType, setLayoutType] = useState<LayoutType>('triple')
+  const [lastRunDate, setLastRunDate] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   const getItemsPerPage = () => {
     switch (layoutType) {
@@ -41,35 +52,57 @@ export default function EmergencyPage() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    fetchPharmacies()
-  }, [currentPage, layoutType]) // Auch bei Layout-Änderung neu laden
+    loadInitialData()
+  }, [])
 
-  const fetchPharmacies = async () => {
+  const loadInitialData = async () => {
+    console.log('🔄 Starte Laden der Apotheken-Daten...');
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true)
-      
-      let query = supabase
+      const { data, error } = await supabase
         .from('current_pharmacy_data')
         .select('*')
-        .order('distance')
+        .order('distance_value', { ascending: true });
 
-      const startIndex = (currentPage - 1) * getItemsPerPage()
-      query = query.range(startIndex, startIndex + getItemsPerPage() - 1)
-
-      const { data, error } = await query
+      console.log('📊 Rohdaten von Supabase:', data);
+      console.log('❌ Fehler von Supabase:', error);
 
       if (error) {
-        console.error('Fehler beim Laden der Daten:', error)
-        return
+        console.error('🚨 Fehler beim Laden der Daten:', error);
+        setError(error.message);
+        return;
       }
 
-      setPharmacies(data || [])
-    } catch (error) {
-      console.error('Fehler:', error)
+      if (data) {
+        console.log(`✅ ${data.length} Apotheken geladen`);
+        data.forEach((pharmacy, index) => {
+          console.log(`📍 Apotheke ${index + 1}:`, {
+            name: pharmacy.Apothekenname,
+            adresse: `${pharmacy.Strasse}, ${pharmacy.PLZ} ${pharmacy.Ort}`,
+            entfernung: pharmacy.Entfernung,
+            distance_value: pharmacy.distance_value,
+            hat_qr: !!pharmacy.qr_code_svg,
+            hat_maps_url: !!pharmacy.maps_url
+          });
+        });
+
+        setPharmacies(data);
+        const currentTime = new Date().toLocaleString('de-DE');
+        setLastRunDate(currentTime);
+        console.log('⏰ Daten aktualisiert um:', currentTime);
+      } else {
+        console.log('⚠️ Keine Daten empfangen');
+        setPharmacies([]);
+      }
+    } catch (error: any) {
+      console.error('🚨 Unerwarteter Fehler:', error);
+      setError(error.message);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
+      console.log('✨ Laden der Daten abgeschlossen');
     }
-  }
+  };
 
   const handleLayoutToggle = () => {
     setLayoutType(current => {
@@ -118,6 +151,12 @@ export default function EmergencyPage() {
       default:
         return ''
     }
+  }
+
+  const generateMapsUrl = (pharmacy: Pharmacy): string => {
+    const url = `https://maps.google.com/?q=${encodeURIComponent(pharmacy.Strasse || '')},${encodeURIComponent(pharmacy.PLZ || '')} ${encodeURIComponent(pharmacy.Ort || '')}`;
+    console.log('🗺️ Generierte Maps-URL:', url);
+    return url;
   }
 
   return (
@@ -181,18 +220,18 @@ export default function EmergencyPage() {
             <tbody>
               {pharmacies.map((pharmacy) => (
                 <tr key={pharmacy.id} className="border-b border-gray-700">
-                  <td className="px-4 py-3">{pharmacy.name}</td>
+                  <td className="px-4 py-3">{pharmacy.Apothekenname}</td>
                   <td className="px-4 py-3">
-                    {pharmacy.street}<br />
-                    {pharmacy.postal_code} {pharmacy.city}
+                    {pharmacy.Strasse}<br />
+                    {pharmacy.PLZ} {pharmacy.Ort}
                   </td>
-                  <td className="px-4 py-3">{pharmacy.phone}</td>
-                  <td className="px-4 py-3">{pharmacy.distance}</td>
-                  <td className="px-4 py-3">{pharmacy.emergency_service_text}</td>
+                  <td className="px-4 py-3">{pharmacy.Telefon}</td>
+                  <td className="px-4 py-3">{pharmacy.Entfernung}</td>
+                  <td className="px-4 py-3">{pharmacy.Notdiensttext}</td>
                   <td className="px-4 py-3">
                     <div className="bg-white p-2 rounded-lg inline-block w-[100px] h-[100px] flex items-center justify-center">
                       <div 
-                        dangerouslySetInnerHTML={{ __html: pharmacy.qr_code_svg }} 
+                        dangerouslySetInnerHTML={{ __html: pharmacy.qr_code_svg || '' }} 
                         className="w-full h-full [&>svg]:w-full [&>svg]:h-full"
                       />
                     </div>
@@ -205,7 +244,7 @@ export default function EmergencyPage() {
       ) : (
         <div className={getGridClass()}>
           {pharmacies.map((pharmacy) => (
-            <div key={pharmacy.id} className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+            <div key={pharmacy.id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
               <div className="flex gap-6">
                 <div className="bg-white p-2 rounded-lg w-[100px] h-[100px] flex items-center justify-center shrink-0">
                   <div 
@@ -215,13 +254,13 @@ export default function EmergencyPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-100">{pharmacy.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-100">{pharmacy.Apothekenname}</h3>
                   <p className="text-sm text-gray-400">
-                    {pharmacy.street}<br />
-                    {pharmacy.postal_code} {pharmacy.city}
+                    {pharmacy.Strasse}<br />
+                    {pharmacy.PLZ} {pharmacy.Ort}
                   </p>
                   <p className="text-sm text-gray-300">
-                    <span className="text-gray-400">Telefon:</span> {pharmacy.phone}
+                    <span className="text-gray-400">Telefon:</span> {pharmacy.Telefon}
                   </p>
                 </div>
               </div>
@@ -229,13 +268,13 @@ export default function EmergencyPage() {
               <div className="mt-4 pt-4 border-t border-gray-700">
                 <p className="text-sm text-gray-300">
                   <span className="text-gray-400">Notdienstinfo:</span><br />
-                  {pharmacy.emergency_service_text}
+                  {pharmacy.Notdiensttext}
                 </p>
               </div>
-
+              
               <div className="mt-4 flex justify-end">
                 <span className="inline-block px-3 py-1 bg-gray-700 rounded-full text-sm text-gray-300">
-                  {pharmacy.distance}
+                  {pharmacy.Entfernung}
                 </span>
               </div>
             </div>

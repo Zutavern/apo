@@ -101,7 +101,7 @@ export default function EmergencyPortrait() {
       const response = await fetch('/api/emergency', {
         cache: 'no-store'
       })
-      
+
       if (!response.ok) {
         console.error('API-Fehler:', response.status, response.statusText)
         throw new Error('Netzwerkfehler')
@@ -112,7 +112,7 @@ export default function EmergencyPortrait() {
         console.error('Keine Apotheken-Daten in der Antwort')
         throw new Error('Ungültige Daten')
       }
-      
+
       setPharmacies(data.pharmacies)
     } catch (error) {
       console.error('Fehler beim Laden der Apotheken:', error)

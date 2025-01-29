@@ -130,8 +130,55 @@ export default function EmergencyApiPage() {
     try {
       console.log('Starte Speichervorgang...');
       console.log('Anzahl der Apotheken:', pharmacies.length);
-      
-      // Lösche alle vorhandenen Daten ohne Bedingung
+
+      // Bereite die neuen Daten vor
+      const pharmacyData = await Promise.all(pharmacies.map(async (pharmacy, index) => {
+          // Generiere Maps URL
+          const address = `${pharmacy.Strasse}, ${pharmacy.PLZ} ${pharmacy.Ort}`;
+          const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+          
+          // Generiere QR Code SVG als String
+          const qrCodeSvg = await QRCode.toString(mapsUrl, {
+            type: 'svg',
+            width: 150,
+            margin: 1,
+            errorCorrectionLevel: 'M'
+          });
+
+          // Extrahiere den numerischen Wert der Entfernung für die Sortierung
+          let distance_value = null;
+          try {
+            const distanceMatch = pharmacy.Entfernung.match(/:\s*(\d+(\.\d+)?)/);
+            distance_value = distanceMatch ? parseFloat(distanceMatch[1]) : null;
+          } catch (error) {
+            console.error('Fehler beim Parsen der Entfernung:', error);
+          }
+
+          return {
+            robot_id: robotId,
+            robot_name: robotName,
+            task_id: taskId,
+            task_created_at: new Date(taskCreatedAt).toISOString(),
+            "Position": pharmacy.Position || '',
+            "Apothekenname": pharmacy.Apothekenname || '',
+            "Notdiensttext": pharmacy.Notdiensttext || '',
+            "Strasse": pharmacy.Strasse || '',
+            "PLZ": pharmacy.PLZ || '',
+            "Ort": pharmacy.Ort || '',
+            "Telefon": pharmacy.Telefon || '',
+            "Entfernung": pharmacy.Entfernung || '',
+            distance_value: distance_value,
+            maps_url: mapsUrl,
+            qr_code_url: mapsUrl,
+            qr_code_svg: qrCodeSvg,
+            last_updated: new Date().toISOString(),
+            user_id: null
+          };
+      }));
+
+      console.log('Daten vorbereitet:', pharmacyData[0]);
+
+      // Lösche ALLE alten Daten
       const { error: deleteError } = await supabase
         .from('current_pharmacy_data')
         .delete()
@@ -141,44 +188,8 @@ export default function EmergencyApiPage() {
         console.error('Fehler beim Löschen alter Daten:', deleteError);
         throw deleteError;
       }
-      
-      console.log('Alte Daten erfolgreich gelöscht');
 
-      // Bereite die neuen Daten vor
-      const pharmacyData = await Promise.all(pharmacies.map(async (pharmacy, index) => {
-        // Generiere Maps URL
-        const address = `${pharmacy.Strasse}, ${pharmacy.PLZ} ${pharmacy.Ort}`;
-        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-        
-        // Generiere QR Code SVG als String
-        const qrCodeSvg = await QRCode.toString(mapsUrl, {
-          type: 'svg',
-          width: 150,
-          margin: 1,
-          errorCorrectionLevel: 'M'
-        });
-
-        return {
-          robot_id: robotId,
-          robot_name: robotName,
-          task_id: taskId,
-          task_created_at: new Date(taskCreatedAt).toISOString(),
-          position: pharmacy.Position,
-          name: pharmacy.Apothekenname,
-          street: pharmacy.Strasse,
-          postal_code: pharmacy.PLZ,
-          city: pharmacy.Ort,
-          phone: pharmacy.Telefon,
-          distance: pharmacy.Entfernung,
-          emergency_service_text: pharmacy.Notdiensttext,
-          maps_url: mapsUrl,
-          qr_code_svg: qrCodeSvg
-        };
-      }));
-
-      console.log('Daten vorbereitet:', pharmacyData[0]);
-
-      // Füge neue Daten ein
+      // Füge die neuen Daten in einem Batch ein
       const { data, error: insertError } = await supabase
         .from('current_pharmacy_data')
         .insert(pharmacyData)
@@ -189,11 +200,9 @@ export default function EmergencyApiPage() {
         throw insertError;
       }
 
-      // Aktualisiere den Zeitstempel nach erfolgreicher Speicherung
-      const currentTime = new Date().toLocaleString('de-DE');
-      setLastRunDate(currentTime);
-
       console.log(`${pharmacyData.length} Apotheken erfolgreich gespeichert. Erste gespeicherte Apotheke:`, data?.[0]);
+      
+      return data;
     } catch (error) {
       console.error('Fehler beim Speichern der Daten:', error);
       throw error;
@@ -231,6 +240,8 @@ export default function EmergencyApiPage() {
         throw new Error('Notdienst-Robot nicht gefunden')
       }
 
+      console.log('Robot gefunden:', notdienstRobot.name);
+
       // Hole die letzten erfolgreichen Tasks
       const tasksResponse = await fetch(`https://api.browse.ai/v2/robots/${notdienstRobot.id}/tasks?status=successful&pageSize=1&sort=-createdAt`, {
         headers: {
@@ -251,37 +262,59 @@ export default function EmergencyApiPage() {
 
       // Extrahiere die Apotheken-Daten aus dem neuesten Task
       const latestTask = tasksData.result.robotTasks.items[0]
-      const pharmacyData = latestTask.capturedLists.Notdienst.map((pharmacy: any) => ({
-        Position: pharmacy.Position,
-        Apothekenname: pharmacy.Apothekenname,
-        Notdiensttext: pharmacy.Notdiensttext,
-        Strasse: pharmacy.Strasse,
-        PLZ: pharmacy.PLZ,
-        Ort: pharmacy.Ort,
-        Telefon: pharmacy.Telefon,
-        Entfernung: pharmacy.Entfernung
-      }))
+      console.log('Rohe API-Daten:', latestTask.capturedLists.Notdienst);
+
+      const pharmacyData = latestTask.capturedLists.Notdienst
+        .filter((pharmacy: any) => pharmacy.Apothekenname && pharmacy.Strasse) // Nur gültige Einträge
+        .map((pharmacy: any, index: number) => ({
+          id: `${latestTask.id}_${index}`,
+          Position: pharmacy.Position || '',
+          Apothekenname: pharmacy.Apothekenname || '',
+          Notdiensttext: pharmacy.Notdiensttext || '',
+          Strasse: pharmacy.Strasse || '',
+          PLZ: pharmacy.PLZ || '',
+          Ort: pharmacy.Ort || '',
+          Telefon: pharmacy.Telefon || '',
+          Entfernung: pharmacy.Entfernung || ''
+        }));
+
+      console.log('Verarbeitete Apotheken-Daten:', pharmacyData);
 
       // Sortiere nach Entfernung
-      const sortedPharmacies = pharmacyData.sort((a, b) => {
-        const distA = parseFloat(a.Entfernung.split(': ')[1].split(' ')[0])
-        const distB = parseFloat(b.Entfernung.split(': ')[1].split(' ')[0])
-        return distA - distB
-      })
+      const sortedPharmacies = pharmacyData
+        .filter(pharmacy => pharmacy.Apothekenname && pharmacy.Strasse) // Nochmalige Filterung
+        .sort((a, b) => {
+          if (!a.Entfernung) return 1
+          if (!b.Entfernung) return -1
+          
+          try {
+            const distA = parseFloat(a.Entfernung.split(': ')[1]?.split(' ')[0] || '0')
+            const distB = parseFloat(b.Entfernung.split(': ')[1]?.split(' ')[0] || '0')
+            return distA - distB
+          } catch (error) {
+            console.error('Fehler beim Parsen der Entfernung:', error)
+            return 0
+          }
+        });
 
-      // Speichere in Datenbank
-      await savePharmacyData(
+      console.log('Sortierte und gefilterte Apotheken:', sortedPharmacies);
+
+      // Speichere in Datenbank und setze die gespeicherten Daten
+      const savedData = await savePharmacyData(
         sortedPharmacies,
         notdienstRobot.id,
         notdienstRobot.name,
         latestTask.id,
         latestTask.createdAt
-      )
+      );
 
-      setPharmacies(sortedPharmacies)
-      const currentTime = new Date().toLocaleString('de-DE')
-      setLastRunDate(currentTime)
-      setError(null)
+      if (savedData) {
+        console.log('Gespeicherte Daten:', savedData);
+        setPharmacies(savedData);
+        const currentTime = new Date().toLocaleString('de-DE');
+        setLastRunDate(currentTime);
+        setError(null);
+      }
     } catch (error: any) {
       console.error('Fehler beim Abrufen der Daten:', error)
       setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten')
@@ -341,44 +374,41 @@ export default function EmergencyApiPage() {
               Notdienst-Apotheken vom letzten Durchlauf ({lastRunDate}), sortiert nach Entfernung:
             </div>
             <div className={getGridClass()}>
-              {pharmacies.map((pharmacy) => {
-                const mapsUrl = pharmacy.maps_url || generateMapsUrl(pharmacy)
-                return (
-                  <div key={pharmacy.Position} className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors">
-                    <h3 className="text-lg font-semibold text-gray-100 mb-2">{pharmacy.Apothekenname}</h3>
-                    <div className="space-y-2 text-gray-300">
-                      <a 
-                        href={mapsUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block hover:text-blue-400 transition-colors flex items-start gap-2"
-                      >
-                        <Map className="h-5 w-5 mt-1 flex-shrink-0" />
-                        <div>
-                          <p>{pharmacy.Strasse}</p>
-                          <p>{pharmacy.PLZ} {pharmacy.Ort}</p>
-                          <p className="text-sm text-blue-400">In Google Maps öffnen</p>
-                        </div>
-                      </a>
-                      <div className="mt-4 bg-white p-2 rounded-lg inline-block">
-                        {pharmacy.qr_code_svg ? (
-                          <div dangerouslySetInnerHTML={{ __html: pharmacy.qr_code_svg }} />
-                        ) : (
-                          <QRCodeSVG
-                            value={mapsUrl}
-                            size={150}
-                            level="M"
-                            includeMargin={true}
-                          />
-                        )}
+              {pharmacies.map((pharmacy) => (
+                <div key={pharmacy.id} className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors">
+                  <h3 className="text-lg font-semibold text-gray-100 mb-2">{pharmacy.Apothekenname}</h3>
+                  <div className="space-y-2 text-gray-300">
+                    <a 
+                      href={pharmacy.maps_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block hover:text-blue-400 transition-colors flex items-start gap-2"
+                    >
+                      <Map className="h-5 w-5 mt-1 flex-shrink-0" />
+                      <div>
+                        <p>{pharmacy.Strasse}</p>
+                        <p>{pharmacy.PLZ} {pharmacy.Ort}</p>
+                        <p className="text-sm text-blue-400">In Google Maps öffnen</p>
                       </div>
-                      <p>Tel: {pharmacy.Telefon}</p>
-                      <p className="text-sm text-blue-400">{pharmacy.Entfernung}</p>
-                      <p className="text-sm text-gray-400">{pharmacy.Notdiensttext}</p>
+                    </a>
+                    <div className="mt-4 bg-white p-2 rounded-lg inline-block">
+                      {pharmacy.qr_code_svg ? (
+                        <div dangerouslySetInnerHTML={{ __html: pharmacy.qr_code_svg }} />
+                      ) : (
+                        <QRCodeSVG
+                          value={pharmacy.maps_url || generateMapsUrl(pharmacy)}
+                          size={150}
+                          level="M"
+                          includeMargin={true}
+                        />
+                      )}
                     </div>
+                    <p>Tel: {pharmacy.Telefon}</p>
+                    <p className="text-sm text-blue-400">{pharmacy.Entfernung}</p>
+                    <p className="text-sm text-gray-400">{pharmacy.Notdiensttext}</p>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </>
         )}

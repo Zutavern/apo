@@ -1,57 +1,59 @@
-import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 export async function GET() {
   try {
-    const cookieStore = await cookies()
+    const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
     const { data: pharmacies, error } = await supabase
       .from('current_pharmacy_data')
       .select('*')
-      .order('distance')
+      .order('distance_value', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      console.error('Fehler beim Laden der Apotheken:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
-    // Formatiere die Daten für die Kartenansicht
+    if (!pharmacies || pharmacies.length === 0) {
+      return NextResponse.json({ 
+        message: 'Keine Apotheken im Notdienst gefunden',
+        pharmacies: [] 
+      })
+    }
+
+    // Formatierte Daten für die Anzeige
     const formattedPharmacies = pharmacies.map(pharmacy => ({
       id: pharmacy.id,
-      name: pharmacy.name,
+      name: pharmacy.Apothekenname,
       address: {
-        street: pharmacy.street,
-        postalCode: pharmacy.postal_code,
-        city: pharmacy.city
+        street: pharmacy.Strasse,
+        postalCode: pharmacy.PLZ,
+        city: pharmacy.Ort
       },
-      phone: pharmacy.phone,
-      distance: pharmacy.distance,
-      emergencyServiceText: pharmacy.emergency_service_text,
-      qrCode: pharmacy.qr_code_svg
+      phone: pharmacy.Telefon,
+      distance: pharmacy.Entfernung,
+      emergencyServiceText: pharmacy.Notdiensttext,
+      qrCode: pharmacy.qr_code_svg,
+      position: pharmacy.Position,
+      distanceValue: pharmacy.distance_value
     }))
 
-    return NextResponse.json(
-      { pharmacies: formattedPharmacies },
-      {
-        headers: {
-          'Cache-Control': 'no-store, must-revalidate',
-          'Content-Type': 'application/json',
-        },
-      }
-    )
+    return NextResponse.json({
+      message: `${pharmacies.length} Apotheken gefunden`,
+      lastUpdated: new Date().toLocaleString('de-DE'),
+      pharmacies: formattedPharmacies
+    })
+
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Unerwarteter Fehler:', error)
     return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { 
-        status: 500,
-        headers: {
-          'Cache-Control': 'no-store, must-revalidate',
-          'Content-Type': 'application/json',
-        },
-      }
+      { error: 'Interner Serverfehler' },
+      { status: 500 }
     )
   }
 } 

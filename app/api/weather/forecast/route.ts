@@ -108,138 +108,74 @@ const validateForecastResponse = (data: any) => {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    console.log('Starte Wettervorhersage-Aktualisierung...')
+    // Wetterdaten von Open-Meteo abrufen
+    const weatherResponse = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${HOHENMOLSEN_COORDS.latitude}&longitude=${HOHENMOLSEN_COORDS.longitude}` +
+      '&hourly=temperature_2m,relative_humidity_2m,precipitation,uv_index,surface_pressure,windspeed_10m,winddirection_10m,weathercode' +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weathercode,sunrise,sunset,uv_index_max,windspeed_10m_max,winddirection_10m_dominant' +
+      '&current_weather=true&timezone=Europe/Berlin'
+    )
 
-    // Extrahiere Test-Parameter aus der URL
-    const url = new URL(request.url)
-    const testCase = url.searchParams.get('test')
-    
-    console.log('Test-Fall:', testCase || 'keiner')
-
-    // 1. API-Anfrage mit Timeout und Fehlerbehandlung
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
-
-    try {
-      const forecastResponse = await simulateError(testCase)
-      clearTimeout(timeout)
-
-      if (!forecastResponse.ok) {
-        throw new Error(`Wetter-API Fehler: ${forecastResponse.status} ${forecastResponse.statusText}`)
-      }
-
-      const forecastData = await forecastResponse.json()
-
-      // 2. Validiere API-Antwort
-      validateForecastResponse(forecastData)
-
-      console.log('API-Antwort erfolgreich validiert')
-
-      // 3. Datenbankoperationen mit Fehlerbehandlung
-      const { data: locationData, error: locationError } = await supabase
-        .from('locations')
-        .select('id')
-        .eq('name', 'Hohenmölsen')
-        .single()
-
-      if (locationError) {
-        if (locationError.code === 'PGRST116') {
-          throw new Error('Standort Hohenmölsen nicht in der Datenbank gefunden')
-        }
-        throw new Error(`Datenbankfehler beim Abrufen des Standorts: ${locationError.message}`)
-      }
-
-      if (!locationData?.id) {
-        throw new Error('Keine location_id gefunden')
-      }
-
-      // 4. Datenaufbereitung und Speicherung
-      const dailyForecasts = forecastData.daily.time.map((date: string, index: number) => ({
-        location_id: locationData.id,
-        forecast_date: date,
-        temperature_min: Number(forecastData.daily.temperature_2m_min[index]),
-        temperature_max: Number(forecastData.daily.temperature_2m_max[index]),
-        precipitation_sum: Number(forecastData.daily.precipitation_sum[index] ?? 0),
-        precipitation_probability: Number(forecastData.daily.precipitation_probability_max[index] ?? 0),
-        weather_code: Number(forecastData.daily.weather_code[index] ?? 0),
-        wind_speed_max: Number(forecastData.daily.wind_speed_10m_max[index]),
-        wind_gusts_max: Number(forecastData.daily.wind_gusts_10m_max[index] ?? 0),
-        wind_direction_dominant: Number(forecastData.daily.wind_direction_10m_dominant[index] ?? 0),
-        sunrise: forecastData.daily.sunrise[index],
-        sunset: forecastData.daily.sunset[index],
-        uv_index_max: Number(forecastData.daily.uv_index_max[index] ?? 0)
-      }))
-
-      console.log('Aufbereitete Vorhersagedaten:', dailyForecasts)
-
-      // 5. Datenbank-Update mit detaillierter Fehlerbehandlung
-      const { error: forecastError } = await supabase
-        .from('daily_forecast')
-        .upsert(dailyForecasts, {
-          onConflict: 'location_id,forecast_date'
-        })
-
-      if (forecastError) {
-        if (forecastError.code === '23502') { // not-null violation
-          throw new Error(`Pflichtfeld fehlt: ${forecastError.details}`)
-        } else if (forecastError.code === '23505') { // unique violation
-          throw new Error('Datensatz existiert bereits')
-        } else {
-          throw new Error(`Datenbankfehler beim Speichern: ${forecastError.message}`)
-        }
-      }
-
-      console.log('Vorhersagedaten erfolgreich gespeichert')
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Wettervorhersage erfolgreich aktualisiert',
-        data: dailyForecasts,
-        timestamp: new Date().toISOString()
-      })
-
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('API-Timeout: Keine Antwort innerhalb von 5 Sekunden')
-      }
-      throw error
+    if (!weatherResponse.ok) {
+      throw new Error('Fehler beim Abrufen der Wetterdaten')
     }
 
-  } catch (error: any) {
-    console.error('Fehler bei der Wettervorhersage-Aktualisierung:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      stack: error.stack
+    const weatherData = await weatherResponse.json()
+
+    // Debug-Logging
+    console.log('Open-Meteo API Antwort:', weatherData)
+
+    // Pollendaten simulieren (da keine echte API verfügbar)
+    const pollenData = {
+      time: weatherData.daily.time,
+      types: {
+        graeser: Array(7).fill(Math.floor(Math.random() * 4)),
+        birke: Array(7).fill(Math.floor(Math.random() * 4)),
+        erle: Array(7).fill(Math.floor(Math.random() * 4)),
+        hasel: Array(7).fill(Math.floor(Math.random() * 4)),
+        beifuss: Array(7).fill(Math.floor(Math.random() * 4)),
+        ambrosia: Array(7).fill(Math.floor(Math.random() * 4))
+      }
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      data: {
+        hourly: {
+          time: weatherData.hourly.time,
+          temperature_2m: weatherData.hourly.temperature_2m,
+          relative_humidity_2m: weatherData.hourly.relative_humidity_2m,
+          precipitation: weatherData.hourly.precipitation,
+          uv_index: weatherData.hourly.uv_index,
+          surface_pressure: weatherData.hourly.surface_pressure,
+          windspeed_10m: weatherData.hourly.windspeed_10m,
+          winddirection_10m: weatherData.hourly.winddirection_10m,
+          weathercode: weatherData.hourly.weathercode
+        },
+        daily: {
+          time: weatherData.daily.time,
+          temperature_2m_max: weatherData.daily.temperature_2m_max,
+          temperature_2m_min: weatherData.daily.temperature_2m_min,
+          precipitation_sum: weatherData.daily.precipitation_sum,
+          precipitation_probability_max: weatherData.daily.precipitation_probability_max,
+          weather_code: weatherData.daily.weathercode,
+          sunrise: weatherData.daily.sunrise,
+          sunset: weatherData.daily.sunset,
+          uv_index_max: weatherData.daily.uv_index_max,
+          windspeed_10m_max: weatherData.daily.windspeed_10m_max,
+          winddirection_10m_dominant: weatherData.daily.winddirection_10m_dominant
+        },
+        current_weather: weatherData.current_weather,
+        pollen: pollenData
+      }
     })
-
-    // Kategorisiere Fehler für Frontend
-    let statusCode = 500
-    let errorType = 'INTERNAL_ERROR'
-
-    if (error.message.includes('API-Timeout')) {
-      statusCode = 504
-      errorType = 'API_TIMEOUT'
-    } else if (error.message.includes('API Fehler')) {
-      statusCode = 502
-      errorType = 'API_ERROR'
-    } else if (error.message.includes('Datenbankfehler')) {
-      statusCode = 503
-      errorType = 'DATABASE_ERROR'
-    } else if (error.message.includes('Validierung') || error.message.includes('ungültig')) {
-      statusCode = 422
-      errorType = 'VALIDATION_ERROR'
-    }
-
-    return NextResponse.json({
-      success: false,
-      error: {
-        type: errorType,
-        message: error.message,
-        details: error.details || null
-      }
-    }, { status: statusCode })
+  } catch (error) {
+    console.error('Fehler in /api/weather/forecast:', error)
+    return NextResponse.json(
+      { success: false, error: 'Fehler beim Abrufen der Wetterdaten' },
+      { status: 500 }
+    )
   }
 } 
