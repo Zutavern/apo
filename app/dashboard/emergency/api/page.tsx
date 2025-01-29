@@ -24,6 +24,7 @@ import QRCode from 'qrcode'
 import { Button } from '@/components/ui/button'
 
 interface Pharmacy {
+  id: string
   Position: string
   Apothekenname: string
   Notdiensttext: string
@@ -32,15 +33,15 @@ interface Pharmacy {
   Ort: string
   Telefon: string
   Entfernung: string
-  maps_url?: string
-  qr_code_svg?: string
+  maps_url: string
+  qr_code_svg: string
 }
 
-type LayoutType = 'single' | 'double' | 'triple'
+type LayoutType = 'single' | 'double' | 'triple' | 'table'
 
 export default function EmergencyApiPage() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRunDate, setLastRunDate] = useState<string | null>(null)
   const [layoutType, setLayoutType] = useState<LayoutType>('triple')
@@ -49,31 +50,49 @@ export default function EmergencyApiPage() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        setIsLoading(true)
+        setError(null)
+        
         const { data: dbData, error: dbError } = await supabase
           .from('current_pharmacy_data')
           .select('*')
-          .order('distance')
+          .order('distance_value', { ascending: true })
 
-        if (dbError) throw dbError
+        if (dbError) {
+          console.error('Datenbankfehler:', dbError)
+          throw new Error(`Datenbankfehler: ${dbError.message}`)
+        }
 
-        if (dbData && dbData.length > 0) {
-          const pharmacyData = dbData.map(item => ({
-            Position: item.position,
-            Apothekenname: item.name,
-            Notdiensttext: item.emergency_service_text,
-            Strasse: item.street,
-            PLZ: item.postal_code,
-            Ort: item.city,
-            Telefon: item.phone,
-            Entfernung: item.distance,
-            maps_url: item.maps_url,
-            qr_code_svg: item.qr_code_svg
-          }))
-          setPharmacies(pharmacyData)
+        if (!dbData || dbData.length === 0) {
+          setPharmacies([])
+          setError('Keine Apotheken gefunden')
+          return
+        }
+
+        const pharmacyData = dbData.map(item => ({
+          id: item.id,
+          Position: item.Position || '',
+          Apothekenname: item.Apothekenname || '',
+          Notdiensttext: item.Notdiensttext || '',
+          Strasse: item.Strasse || '',
+          PLZ: item.PLZ || '',
+          Ort: item.Ort || '',
+          Telefon: item.Telefon || '',
+          Entfernung: item.Entfernung || '',
+          maps_url: item.maps_url || '',
+          qr_code_svg: item.qr_code_svg || ''
+        }))
+
+        setPharmacies(pharmacyData)
+        if (dbData[0]?.task_created_at) {
           setLastRunDate(new Date(dbData[0].task_created_at).toLocaleString('de-DE'))
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Fehler beim Laden der initialen Daten:', error)
+        setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten')
+        setPharmacies([])
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -352,67 +371,68 @@ export default function EmergencyApiPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <XCircle className="h-5 w-5 text-red-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">
-                {error}
-              </p>
-            </div>
-          </div>
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       )}
 
-      <div className="space-y-6">
-        {pharmacies.length > 0 && (
-          <>
-            <div className="text-gray-300 mb-4">
-              Notdienst-Apotheken vom letzten Durchlauf ({lastRunDate}), sortiert nach Entfernung:
-            </div>
-            <div className={getGridClass()}>
-              {pharmacies.map((pharmacy) => (
-                <div key={pharmacy.id} className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors">
-                  <h3 className="text-lg font-semibold text-gray-100 mb-2">{pharmacy.Apothekenname}</h3>
-                  <div className="space-y-2 text-gray-300">
-                    <a 
-                      href={pharmacy.maps_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block hover:text-blue-400 transition-colors flex items-start gap-2"
-                    >
-                      <Map className="h-5 w-5 mt-1 flex-shrink-0" />
-                      <div>
-                        <p>{pharmacy.Strasse}</p>
-                        <p>{pharmacy.PLZ} {pharmacy.Ort}</p>
-                        <p className="text-sm text-blue-400">In Google Maps öffnen</p>
-                      </div>
-                    </a>
-                    <div className="mt-4 bg-white p-2 rounded-lg inline-block">
-                      {pharmacy.qr_code_svg ? (
-                        <div dangerouslySetInnerHTML={{ __html: pharmacy.qr_code_svg }} />
-                      ) : (
-                        <QRCodeSVG
-                          value={pharmacy.maps_url || generateMapsUrl(pharmacy)}
-                          size={150}
-                          level="M"
-                          includeMargin={true}
-                        />
-                      )}
+      {error && (
+        <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4 mb-6">
+          <p className="text-red-500">{error}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && pharmacies.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          Keine Apotheken im Notdienst gefunden
+        </div>
+      )}
+
+      {!isLoading && !error && pharmacies.length > 0 && (
+        <>
+          <div className="text-gray-300 mb-4">
+            Notdienst-Apotheken vom letzten Durchlauf ({lastRunDate || 'Unbekannt'}), sortiert nach Entfernung:
+          </div>
+          <div className={getGridClass()}>
+            {pharmacies.map((pharmacy) => (
+              <div key={pharmacy.id} className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors">
+                <h3 className="text-lg font-semibold text-gray-100 mb-2">{pharmacy.Apothekenname}</h3>
+                <div className="space-y-2 text-gray-300">
+                  <a 
+                    href={pharmacy.maps_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block hover:text-blue-400 transition-colors flex items-start gap-2"
+                  >
+                    <Map className="h-5 w-5 mt-1 flex-shrink-0" />
+                    <div>
+                      <p>{pharmacy.Strasse}</p>
+                      <p>{pharmacy.PLZ} {pharmacy.Ort}</p>
+                      <p className="text-sm text-blue-400">In Google Maps öffnen</p>
                     </div>
-                    <p>Tel: {pharmacy.Telefon}</p>
-                    <p className="text-sm text-blue-400">{pharmacy.Entfernung}</p>
-                    <p className="text-sm text-gray-400">{pharmacy.Notdiensttext}</p>
+                  </a>
+                  <div className="mt-4 bg-white p-2 rounded-lg inline-block">
+                    {pharmacy.qr_code_svg ? (
+                      <div dangerouslySetInnerHTML={{ __html: pharmacy.qr_code_svg }} />
+                    ) : (
+                      <QRCodeSVG
+                        value={pharmacy.maps_url || generateMapsUrl(pharmacy)}
+                        size={150}
+                        level="M"
+                        includeMargin={true}
+                      />
+                    )}
                   </div>
+                  <p>Tel: {pharmacy.Telefon}</p>
+                  <p className="text-sm text-blue-400">{pharmacy.Entfernung}</p>
+                  <p className="text-sm text-gray-400">{pharmacy.Notdiensttext}</p>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 } 
