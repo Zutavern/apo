@@ -18,9 +18,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface AsthmaIndexCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
+export function AsthmaIndexCard({ layout = 'single', isDarkMode = false }: AsthmaIndexCardProps) {
   const [asthmaData, setAsthmaData] = useState<AsthmaData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -57,6 +58,7 @@ export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
           throw new Error('Fehler beim Laden der Daten')
         }
       } catch (err) {
+        console.error('Fehler beim Laden der Asthma-Index-Daten:', err)
         setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
       } finally {
         setIsLoading(false)
@@ -68,7 +70,7 @@ export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
         <CardContent className="pt-6">
           <div className="flex justify-center items-center min-h-[200px]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300" />
@@ -80,7 +82,7 @@ export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
 
   if (error) {
     return (
-      <Card>
+      <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
         <CardContent className="pt-6">
           <div className="flex justify-center items-center min-h-[200px] text-red-500">
             {error}
@@ -96,9 +98,9 @@ export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
   
   // Berechne den Asthma-Index (0-10)
   const calculateAsthmaIndex = () => {
-    const dust = asthmaData.hourly.dust[currentIndex]
-    const humidity = asthmaData.hourly.relative_humidity_2m[currentIndex]
-    const temp = asthmaData.hourly.temperature_2m[currentIndex]
+    const dust = asthmaData.hourly.dust[currentIndex] || 0
+    const humidity = asthmaData.hourly.relative_humidity_2m[currentIndex] || 50
+    const temp = asthmaData.hourly.temperature_2m[currentIndex] || 20
 
     let index = 0
 
@@ -137,39 +139,41 @@ export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
   const level = getAsthmaLevel(asthmaIndex)
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>Asthma-Index Hohenmölsen</CardTitle>
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+        <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
+          Asthma-Index Hohenmölsen
+        </CardTitle>
         <Switch />
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm mb-4">
-          <div className="text-4xl font-bold mb-2">{asthmaIndex}/10</div>
+        <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm mb-4`}>
+          <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>{asthmaIndex}/10</div>
           <div className={`text-lg font-semibold ${level.color} mb-4`}>
             {level.text}
           </div>
-          <div className="text-sm text-gray-400 text-center">
+          <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} text-center`}>
             {level.advice}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <Wind className="h-8 w-8 text-blue-500 mb-2" />
-            <div className="text-sm text-gray-400 mb-1">Feinstaub</div>
-            <div className="text-base font-semibold text-black">
-              {asthmaData.hourly.dust[currentIndex].toFixed(1)} µg/m³
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Feinstaub</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
+              {(asthmaData.hourly.dust[currentIndex] || 0).toFixed(1)} µg/m³
             </div>
           </div>
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
-            <div className="text-sm text-gray-400 mb-1">Luftfeuchte</div>
-            <div className="text-base font-semibold text-black">
-              {asthmaData.hourly.relative_humidity_2m[currentIndex].toFixed(0)}%
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Luftfeuchte</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
+              {(asthmaData.hourly.relative_humidity_2m[currentIndex] || 50).toFixed(0)}%
             </div>
           </div>
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
-            <div className="text-sm text-gray-400 mb-1">Temperatur</div>
-            <div className="text-base font-semibold text-black">
-              {asthmaData.hourly.temperature_2m[currentIndex].toFixed(1)}°C
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Temperatur</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
+              {(asthmaData.hourly.temperature_2m[currentIndex] || 20).toFixed(1)}°C
             </div>
           </div>
         </div>

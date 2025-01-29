@@ -21,9 +21,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface ForecastCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function ForecastCard({ layout = 'single' }: ForecastCardProps) {
+export function ForecastCard({ layout = 'single', isDarkMode = false }: ForecastCardProps) {
   const [forecastData, setForecastData] = useState<DailyForecast | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -113,14 +114,12 @@ export function ForecastCard({ layout = 'single' }: ForecastCardProps) {
   if (!forecastData?.time) return null
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>7-Tage-Vorhersage Hohenmölsen</CardTitle>
-        <Switch
-          checked={isToggled}
-          onCheckedChange={setIsToggled}
-          className="data-[state=checked]:bg-blue-500"
-        />
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+        <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
+          7-Tage-Vorhersage Hohenmölsen
+        </CardTitle>
+        <Switch checked={isToggled} onCheckedChange={setIsToggled} />
       </CardHeader>
       <CardContent>
         <div className={`grid ${getGridClass()} gap-4 divide-gray-200`}>
@@ -130,30 +129,34 @@ export function ForecastCard({ layout = 'single' }: ForecastCardProps) {
             return (
               <div
                 key={date}
-                className={`flex flex-col items-center p-4 relative rounded-lg border border-gray-800 ${
-                  isToday ? 'bg-blue-50/5 border-blue-500' : ''
+                className={`flex flex-col items-center justify-center p-4 relative rounded-lg border min-h-[200px] ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                } ${
+                  isToday 
+                    ? `${isDarkMode ? 'bg-gray-700' : 'bg-white'} border-blue-500` 
+                    : isDarkMode ? 'bg-gray-700' : 'bg-white'
                 }`}
               >
                 {isToday && (
                   <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 rounded-t-lg" />
                 )}
-                <div className="text-sm font-medium text-gray-400 mb-2">
+                <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>
                   {formatDate(date)}
                 </div>
                 <WeatherIcon className="h-10 w-10 text-blue-500 mb-2" />
                 <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-2xl font-bold text-black">
+                  <span className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                     {forecastData.temperature_2m_max[index].toFixed(0)}°
                   </span>
-                  <span className="text-sm text-gray-400">
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                     {forecastData.temperature_2m_min[index].toFixed(0)}°
                   </span>
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                   {forecastData.precipitation_sum[index]} mm
                 </div>
                 {isToggled && (
-                  <div className="mt-3 pt-3 border-t border-gray-800 text-xs text-gray-400 w-full text-center">
+                  <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} w-full text-center`}>
                     <div>↑ {formatTime(forecastData.sunrise[index])}</div>
                     <div>↓ {formatTime(forecastData.sunset[index])}</div>
                   </div>

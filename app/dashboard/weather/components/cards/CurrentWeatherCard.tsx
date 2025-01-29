@@ -25,9 +25,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface CurrentWeatherCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function CurrentWeatherCard({ layout = 'single' }: CurrentWeatherCardProps) {
+export function CurrentWeatherCard({ layout = 'single', isDarkMode = false }: CurrentWeatherCardProps) {
   const [weatherData, setWeatherData] = useState<CurrentWeatherData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -122,58 +123,56 @@ export function CurrentWeatherCard({ layout = 'single' }: CurrentWeatherCardProp
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>Aktuelles Wetter in Hohenmölsen</CardTitle>
-        <Switch
-          checked={isToggled}
-          onCheckedChange={setIsToggled}
-          className="data-[state=checked]:bg-blue-500"
-        />
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+        <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
+          Aktuelles Wetter in Hohenmölsen
+        </CardTitle>
+        <Switch />
       </CardHeader>
       <CardContent>
         <div className={`grid ${getGridClass()} gap-6`}>
           {/* Temperatur und Wetter-Icon */}
-          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-4">
+          <div className={`flex flex-col items-center justify-center min-h-[200px] space-y-4 p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <WeatherIcon className="h-16 w-16 text-blue-500" />
-            <div className="text-4xl font-bold text-black">
+            <div className={`text-4xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
               {weatherData.temperature_2m.toFixed(1)}°C
             </div>
-            <div className="text-sm text-gray-400">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
               Gefühlt wie {weatherData.apparent_temperature.toFixed(1)}°C
             </div>
           </div>
 
           {/* Luftfeuchtigkeit und Niederschlag */}
-          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-8">
+          <div className={`flex flex-col items-center justify-center min-h-[200px] space-y-8 p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <div className="flex flex-col items-center space-y-2">
               <Droplets className="h-8 w-8 text-blue-500" />
-              <div className="text-2xl font-semibold text-black">
+              <div className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {weatherData.relative_humidity_2m}%
               </div>
-              <div className="text-sm text-gray-400">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                 Luftfeuchtigkeit
               </div>
             </div>
             <div className="flex flex-col items-center space-y-2">
               <Umbrella className="h-8 w-8 text-blue-500" />
-              <div className="text-2xl font-semibold text-black">
+              <div className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {weatherData.precipitation.toFixed(1)} mm
               </div>
-              <div className="text-sm text-gray-400">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                 Niederschlag
               </div>
             </div>
           </div>
 
           {/* Luftdruck und UV-Index */}
-          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-8">
+          <div className={`flex flex-col items-center justify-center min-h-[200px] space-y-8 p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <div className="flex flex-col items-center space-y-2">
               <Gauge className="h-8 w-8 text-blue-500" />
-              <div className="text-2xl font-semibold text-black">
+              <div className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {weatherData.surface_pressure.toFixed(0)} hPa
               </div>
-              <div className="text-sm text-gray-400">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                 Luftdruck
               </div>
             </div>
@@ -182,32 +181,32 @@ export function CurrentWeatherCard({ layout = 'single' }: CurrentWeatherCardProp
               <div className={`text-2xl font-semibold ${getUVWarningColor(weatherData.uv_index)}`}>
                 {weatherData.uv_index.toFixed(1)}
               </div>
-              <div className="text-sm text-gray-400">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                 UV-Index
               </div>
             </div>
           </div>
 
           {/* Wind und Sonnenzeiten */}
-          <div className="flex flex-col items-center justify-center min-h-[200px] space-y-8">
+          <div className={`flex flex-col items-center justify-center min-h-[200px] space-y-8 p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <div className="flex flex-col items-center space-y-2">
               <Wind className="h-8 w-8 text-blue-500" />
-              <div className="text-2xl font-semibold text-black">
+              <div className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {weatherData.wind_speed_10m.toFixed(1)} km/h
               </div>
-              <div className="text-sm text-gray-400">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                 Wind aus {getWindDirection(weatherData.wind_direction_10m)} ({weatherData.wind_direction_10m}°)
               </div>
             </div>
             <div className="flex flex-col items-center space-y-2">
               <SunMoon className="h-8 w-8 text-blue-500" />
-              <div className="text-base font-medium text-black">
+              <div className={`text-base font-medium ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 ↑ {formatTime(weatherData.sunrise)}
               </div>
-              <div className="text-base font-medium text-black">
+              <div className={`text-base font-medium ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 ↓ {formatTime(weatherData.sunset)}
               </div>
-              <div className="text-sm text-gray-400">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'}`}>
                 Sonnenauf-/untergang
               </div>
             </div>

@@ -18,9 +18,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface UVIndexCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function UVIndexCard({ layout = 'single' }: UVIndexCardProps) {
+export function UVIndexCard({ layout = 'single', isDarkMode = false }: UVIndexCardProps) {
   const [uvData, setUVData] = useState<UVData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -93,18 +94,20 @@ export function UVIndexCard({ layout = 'single' }: UVIndexCardProps) {
   const uvLevel = getUVLevel(uvIndex)
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>UV-Index Hohenmölsen</CardTitle>
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+        <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
+          UV-Index Hohenmölsen
+        </CardTitle>
         <Switch />
       </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
-          <div className="text-4xl font-bold mb-2">{uvIndex.toFixed(1)}</div>
+      <CardContent className="flex-1 flex items-center justify-center min-h-[200px]">
+        <div className={`flex flex-col items-center justify-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm w-full`}>
+          <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-white' : ''}`}>{uvIndex.toFixed(1)}</div>
           <div className={`text-lg font-semibold ${uvLevel.color} mb-4`}>
             {uvLevel.text}
           </div>
-          <div className="text-sm text-gray-400 text-center">
+          <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} text-center`}>
             {uvLevel.advice}
           </div>
         </div>

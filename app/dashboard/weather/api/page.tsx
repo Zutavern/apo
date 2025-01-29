@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, RefreshCw, Rows, Columns, LayoutGrid } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Rows, Columns, LayoutGrid, Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { CurrentWeatherCard } from '../components/cards/CurrentWeatherCard'
@@ -9,13 +9,13 @@ import { PollenCard } from '../components/cards/PollenCard'
 import { UVIndexCard } from '../components/cards/UVIndexCard'
 import { BioweatherCard } from '../components/cards/BioweatherCard'
 import { AsthmaIndexCard } from '../components/cards/AsthmaIndexCard'
-import { ColdRiskCard } from '../components/cards/ColdRiskCard'
 
 type LayoutType = 'single' | 'double' | 'triple'
 
 export default function WeatherApiPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [layout, setLayout] = useState<LayoutType>('single')
+  const [isDarkMode, setIsDarkMode] = useState(false)
 
   const handleUpdate = async () => {
     setIsLoading(true)
@@ -77,7 +77,7 @@ export default function WeatherApiPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className={`container mx-auto px-4 py-8 ${isDarkMode ? 'bg-gray-900' : ''}`}>
       <div className="flex items-center gap-4 mb-8">
         <Link
           href="/dashboard/weather"
@@ -87,6 +87,17 @@ export default function WeatherApiPage() {
         </Link>
         <h1 className="text-2xl font-bold text-gray-100">Wetter API</h1>
         <div className="flex items-center gap-4 ml-auto">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors"
+            title={isDarkMode ? 'Tag-Modus' : 'Nacht-Modus'}
+          >
+            {isDarkMode ? (
+              <Sun className="h-5 w-5 text-yellow-500" />
+            ) : (
+              <Moon className="h-5 w-5 text-purple-500" />
+            )}
+          </button>
           <button
             onClick={handleLayoutToggle}
             className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
@@ -106,13 +117,12 @@ export default function WeatherApiPage() {
       </div>
 
       <div className={getGridClass()}>
-        <CurrentWeatherCard layout={layout} />
-        <ForecastCard layout={layout} />
-        <PollenCard layout={layout} />
-        <UVIndexCard layout={layout} />
-        <BioweatherCard layout={layout} />
-        <AsthmaIndexCard layout={layout} />
-        <ColdRiskCard layout={layout} />
+        <CurrentWeatherCard layout={layout} isDarkMode={isDarkMode} />
+        <ForecastCard layout={layout} isDarkMode={isDarkMode} />
+        <PollenCard layout={layout} isDarkMode={isDarkMode} />
+        <UVIndexCard layout={layout} isDarkMode={isDarkMode} />
+        <BioweatherCard layout={layout} isDarkMode={isDarkMode} />
+        <AsthmaIndexCard layout={layout} isDarkMode={isDarkMode} />
       </div>
     </div>
   )

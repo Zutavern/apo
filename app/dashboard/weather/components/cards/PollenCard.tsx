@@ -21,9 +21,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface PollenCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function PollenCard({ layout = 'single' }: PollenCardProps) {
+export function PollenCard({ layout = 'single', isDarkMode = false }: PollenCardProps) {
   const [pollenData, setPollenData] = useState<PollenData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -134,60 +135,62 @@ export function PollenCard({ layout = 'single' }: PollenCardProps) {
   const averageValues = getAverageValues()
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>Pollenbelastung in Hohenmölsen</CardTitle>
-        <Switch checked={isToggled} onCheckedChange={setIsToggled} />
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+        <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
+          Pollenbelastung in Hohenmölsen
+        </CardTitle>
+        <Switch />
       </CardHeader>
       <CardContent>
-        <div className="text-sm text-gray-400 mb-4">
+        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-4`}>
           Vorhersage für {formatTimeRange()}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 min-h-[200px] items-center">
           <div className="space-y-4">
-            <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+            <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
               <Flower2 className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-sm text-gray-400 mb-2">Erle</div>
-              <div className="text-base font-semibold text-black">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>Erle</div>
+              <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {getPollenLevel(averageValues.alder).text}
               </div>
             </div>
-            <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+            <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
               <Flower2 className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-sm text-gray-400 mb-2">Birke</div>
-              <div className="text-base font-semibold text-black">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>Birke</div>
+              <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {getPollenLevel(averageValues.birch).text}
               </div>
             </div>
           </div>
           <div className="space-y-4">
-            <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+            <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
               <Leaf className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-sm text-gray-400 mb-2">Gräser</div>
-              <div className="text-base font-semibold text-black">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>Gräser</div>
+              <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {getPollenLevel(averageValues.grass).text}
               </div>
             </div>
-            <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+            <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
               <Leaf className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-sm text-gray-400 mb-2">Beifuß</div>
-              <div className="text-base font-semibold text-black">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>Beifuß</div>
+              <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {getPollenLevel(averageValues.mugwort).text}
               </div>
             </div>
           </div>
           <div className="space-y-4">
-            <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+            <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
               <Leaf className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-sm text-gray-400 mb-2">Ragweed</div>
-              <div className="text-base font-semibold text-black">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>Ragweed</div>
+              <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {getPollenLevel(averageValues.ragweed).text}
               </div>
             </div>
-            <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+            <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
               <Wind className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-sm text-gray-400 mb-2">Feinstaub</div>
-              <div className="text-base font-semibold text-black">
+              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-2`}>Feinstaub</div>
+              <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
                 {averageValues.dust.toFixed(1)} µg/m³
               </div>
             </div>

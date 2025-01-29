@@ -25,9 +25,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface ColdRiskCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
+export function ColdRiskCard({ layout = 'single', isDarkMode = false }: ColdRiskCardProps) {
   const [coldRiskData, setColdRiskData] = useState<ColdRiskData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,22 +36,8 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
   useEffect(() => {
     async function fetchColdRiskData() {
       try {
-        const response = await fetch('/api/weather/forecast')
-        if (!response.ok) {
-          throw new Error('Fehler beim Laden der Daten')
-        }
-        const result = await response.json()
-        
-        // Detailliertes Debug-Logging
-        console.log('API-Antwort:', {
-          success: result.success,
-          data: result.data,
-          hourlyKeys: result.data?.hourly ? Object.keys(result.data.hourly) : [],
-          currentWeather: result.data?.current_weather
-        })
-
-        // Erstelle Standarddaten, falls Werte fehlen
-        const defaultData = {
+        // Erstelle Fallback-Daten
+        const fallbackData = {
           hourly: {
             time: Array(24).fill(new Date().toISOString()),
             temperature_2m: Array(24).fill(20),
@@ -66,18 +53,31 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
           }
         }
 
-        // Kombiniere die tatsächlichen Daten mit den Standarddaten
-        const combinedData = {
-          hourly: {
-            time: result.data?.hourly?.time || defaultData.hourly.time,
-            temperature_2m: result.data?.hourly?.temperature_2m || defaultData.hourly.temperature_2m,
-            relative_humidity_2m: result.data?.hourly?.relative_humidity_2m || defaultData.hourly.relative_humidity_2m,
-            precipitation: result.data?.hourly?.precipitation || defaultData.hourly.precipitation
-          },
-          current_weather: result.data?.current_weather || defaultData.current_weather
+        const response = await fetch('/api/weather/forecast')
+        
+        if (!response.ok) {
+          console.warn('Verwende Fallback-Daten aufgrund eines API-Fehlers')
+          setColdRiskData(fallbackData)
+          return
         }
 
-        setColdRiskData(combinedData)
+        const result = await response.json()
+        
+        if (!result.success || !result.data?.hourly || !result.data?.current_weather) {
+          console.warn('Ungültige API-Antwort, verwende Fallback-Daten')
+          setColdRiskData(fallbackData)
+          return
+        }
+
+        setColdRiskData({
+          hourly: {
+            time: result.data.hourly.time || fallbackData.hourly.time,
+            temperature_2m: result.data.hourly.temperature_2m || fallbackData.hourly.temperature_2m,
+            relative_humidity_2m: result.data.hourly.relative_humidity_2m || fallbackData.hourly.relative_humidity_2m,
+            precipitation: result.data.hourly.precipitation || fallbackData.hourly.precipitation
+          },
+          current_weather: result.data.current_weather || fallbackData.current_weather
+        })
       } catch (err) {
         console.error('Fehler beim Laden der Erkältungsrisiko-Daten:', err)
         setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten')
@@ -91,7 +91,7 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
         <CardContent className="pt-6">
           <div className="flex justify-center items-center min-h-[200px]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300" />
@@ -103,7 +103,7 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
 
   if (error) {
     return (
-      <Card>
+      <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
         <CardContent className="pt-6">
           <div className="flex justify-center items-center min-h-[200px] text-red-500">
             {error}
@@ -113,11 +113,11 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
     )
   }
 
-  if (!coldRiskData?.hourly || !coldRiskData?.current_weather) return null
+  if (!coldRiskData) return null
 
   const currentTime = new Date()
   const currentIndex = currentTime.getHours()
-  const nextIndex = (currentIndex + 6) % 24 // 6 Stunden später
+  const nextIndex = (currentIndex + 6) % 24
 
   // Berechne das Erkältungsrisiko (0-10)
   const calculateColdRisk = () => {
@@ -163,40 +163,40 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
   const level = getColdRiskLevel(coldRisk)
 
   return (
-    <Card>
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>Erkältungsrisiko Hohenmölsen</CardTitle>
         <Switch />
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm mb-4">
-          <div className="text-4xl font-bold mb-2">{coldRisk}/10</div>
+        <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm mb-4`}>
+          <div className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>{coldRisk}/10</div>
           <div className={`text-lg font-semibold ${level.color} mb-4`}>
             {level.text}
           </div>
-          <div className="text-sm text-gray-400 text-center">
+          <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} text-center`}>
             {level.advice}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <Thermometer className="h-8 w-8 text-blue-500 mb-2" />
-            <div className="text-sm text-gray-400 mb-1">Temperatur</div>
-            <div className="text-base font-semibold text-black">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Temperatur</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
               {coldRiskData.current_weather.temperature.toFixed(1)}°C
             </div>
           </div>
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <Droplets className="h-8 w-8 text-blue-500 mb-2" />
-            <div className="text-sm text-gray-400 mb-1">Luftfeuchte</div>
-            <div className="text-base font-semibold text-black">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Luftfeuchte</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
               {(coldRiskData.hourly.relative_humidity_2m[currentIndex] || 50).toFixed(0)}%
             </div>
           </div>
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <CloudRain className="h-8 w-8 text-blue-500 mb-2" />
-            <div className="text-sm text-gray-400 mb-1">Niederschlag</div>
-            <div className="text-base font-semibold text-black">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Niederschlag</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
               {(coldRiskData.hourly.precipitation[currentIndex] || 0).toFixed(1)} mm
             </div>
           </div>

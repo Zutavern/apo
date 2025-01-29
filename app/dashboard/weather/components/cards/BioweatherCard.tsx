@@ -24,9 +24,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 
 interface BioweatherCardProps {
   layout?: LayoutType
+  isDarkMode?: boolean
 }
 
-export function BioweatherCard({ layout = 'single' }: BioweatherCardProps) {
+export function BioweatherCard({ layout = 'single', isDarkMode = false }: BioweatherCardProps) {
   const [bioData, setBioData] = useState<BioweatherData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -117,48 +118,37 @@ export function BioweatherCard({ layout = 'single' }: BioweatherCardProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>Biowetter Hohenmölsen</CardTitle>
+    <Card className={isDarkMode ? 'bg-gray-800 border-gray-700' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+        <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
+          Biowetter Hohenmölsen
+        </CardTitle>
         <Switch />
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+      <CardContent className="flex-1 flex flex-col items-center justify-center min-h-[200px]">
+        <div className="grid grid-cols-2 gap-4 mb-4 w-2/3">
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <Thermometer className="h-8 w-8 text-blue-500 mb-2" />
-            <div className="text-sm text-gray-400 mb-1">Temperatur</div>
-            <div className="text-base font-semibold text-black">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Temperatur</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
               {currentTemp.toFixed(1)}°C
             </div>
-            <div className="text-sm text-gray-400 flex items-center">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} flex items-center`}>
               {tempChange > 0 ? <ArrowUp className="h-4 w-4 text-red-500" /> : <ArrowDown className="h-4 w-4 text-blue-500" />}
               {Math.abs(tempChange).toFixed(1)}°C
             </div>
           </div>
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+          <div className={`flex flex-col items-center p-4 ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg shadow-sm`}>
             <Droplets className="h-8 w-8 text-blue-500 mb-2" />
-            <div className="text-sm text-gray-400 mb-1">Luftfeuchte</div>
-            <div className="text-base font-semibold text-black">
+            <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-400'} mb-1`}>Luftfeuchte</div>
+            <div className={`text-base font-semibold ${isDarkMode ? 'text-gray-100' : 'text-black'}`}>
               {humidity.toFixed(0)}%
             </div>
           </div>
-          <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
-            <div className="text-sm text-gray-400 mb-1">Luftdruck</div>
-            <div className="text-base font-semibold text-black">
-              {currentPressure.toFixed(0)} hPa
-            </div>
-            <div className="text-sm text-gray-400 flex items-center">
-              {pressureChange > 0 ? <ArrowUp className="h-4 w-4 text-red-500" /> : <ArrowDown className="h-4 w-4 text-blue-500" />}
-              {Math.abs(pressureChange).toFixed(1)}
-            </div>
-          </div>
         </div>
-        <div className="space-y-2">
+        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} text-center mt-4`}>
           {getBioweatherAdvice().map((advice, index) => (
-            <div key={index} className="text-sm text-gray-600 flex items-start gap-2">
-              <div className="min-w-2 h-2 w-2 rounded-full bg-blue-500 mt-1.5" />
-              {advice}
-            </div>
+            <div key={index} className="mb-1">{advice}</div>
           ))}
         </div>
       </CardContent>
