@@ -137,15 +137,7 @@ export function PollenCard({ layout = 'single' }: PollenCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>Pollenbelastung in Hohenmölsen</CardTitle>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">6h</span>
-          <Switch
-            checked={isToggled}
-            onCheckedChange={setIsToggled}
-            className="data-[state=checked]:bg-blue-500"
-          />
-          <span className="text-sm text-gray-400">24h</span>
-        </div>
+        <Switch checked={isToggled} onCheckedChange={setIsToggled} />
       </CardHeader>
       <CardContent>
         <div className="text-sm text-gray-400 mb-4">

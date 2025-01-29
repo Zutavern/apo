@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Heart, Thermometer, Droplets, ArrowDown, ArrowUp } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Thermometer, Droplets, ArrowDown, ArrowUp } from 'lucide-react'
 
 interface BioweatherData {
   hourly: {
@@ -119,7 +120,7 @@ export function BioweatherCard({ layout = 'single' }: BioweatherCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>Biowetter Hohenmölsen</CardTitle>
-        <Heart className="h-5 w-5 text-blue-500" />
+        <Switch />
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4 mb-4">

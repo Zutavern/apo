@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Stethoscope, Wind } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Wind } from 'lucide-react'
 
 interface AsthmaData {
   hourly: {
@@ -139,7 +140,7 @@ export function AsthmaIndexCard({ layout = 'single' }: AsthmaIndexCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>Asthma-Index Hohenmölsen</CardTitle>
-        <Stethoscope className="h-5 w-5 text-blue-500" />
+        <Switch />
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm mb-4">

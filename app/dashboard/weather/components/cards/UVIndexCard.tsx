@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Sun } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 interface UVData {
   hourly: {
@@ -96,7 +96,7 @@ export function UVIndexCard({ layout = 'single' }: UVIndexCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>UV-Index Hohenmölsen</CardTitle>
-        <Sun className="h-5 w-5 text-blue-500" />
+        <Switch />
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">

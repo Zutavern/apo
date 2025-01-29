@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import { Thermometer, Droplets, CloudRain } from 'lucide-react'
 
 interface ColdRiskData {
@@ -165,7 +166,7 @@ export function ColdRiskCard({ layout = 'single' }: ColdRiskCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle>Erkältungsrisiko Hohenmölsen</CardTitle>
-        <Thermometer className="h-5 w-5 text-blue-500" />
+        <Switch />
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm mb-4">
