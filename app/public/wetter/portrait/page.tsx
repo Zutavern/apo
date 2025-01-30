@@ -90,10 +90,8 @@ export default function WeatherPortrait() {
         }}
         className="absolute inset-0 flex items-center justify-center p-4"
       >
-        <div className="w-full max-w-7xl">
-          <div className="grid grid-cols-2 gap-6">
-            <CurrentWeatherCard layout="double" isDarkMode={false} />
-          </div>
+        <div className="w-[80%] max-w-2xl mx-auto">
+          <CurrentWeatherCard layout="double" isDarkMode={false} />
         </div>
       </motion.div>
     </div>
