@@ -19,6 +19,8 @@ interface CurrentWeatherData {
   uv_index: number
   sunrise: string
   sunset: string
+  is_expanded: boolean
+  id: string
 }
 
 type LayoutType = 'single' | 'double' | 'triple'
@@ -26,9 +28,10 @@ type LayoutType = 'single' | 'double' | 'triple'
 interface CurrentWeatherCardProps {
   layout?: LayoutType
   isDarkMode?: boolean
+  showToggle?: boolean
 }
 
-export function CurrentWeatherCard({ layout = 'single', isDarkMode = false }: CurrentWeatherCardProps) {
+export function CurrentWeatherCard({ layout = 'single', isDarkMode = false, showToggle = false }: CurrentWeatherCardProps) {
   const [weatherData, setWeatherData] = useState<CurrentWeatherData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +47,7 @@ export function CurrentWeatherCard({ layout = 'single', isDarkMode = false }: Cu
         const data = await response.json()
         if (data.success) {
           setWeatherData(data.data)
+          setIsToggled(data.data.is_expanded)
         } else {
           throw new Error(data.error || 'Fehler beim Laden der Wetterdaten')
         }
@@ -56,6 +60,31 @@ export function CurrentWeatherCard({ layout = 'single', isDarkMode = false }: Cu
 
     fetchWeatherData()
   }, [])
+
+  const handleToggle = async (checked: boolean) => {
+    if (!weatherData?.id) return
+
+    try {
+      const response = await fetch('/api/weather/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: weatherData.id,
+          is_expanded: checked
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Aktualisieren des Status')
+      }
+
+      setIsToggled(checked)
+    } catch (err) {
+      console.error('Fehler beim Toggle:', err)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -82,6 +111,10 @@ export function CurrentWeatherCard({ layout = 'single', isDarkMode = false }: Cu
   }
 
   if (!weatherData) return null
+
+  // Wenn wir nicht auf der API-Seite sind (showToggle ist false) und is_expanded false ist,
+  // zeigen wir die Karte nicht an
+  if (!showToggle && !weatherData.is_expanded) return null
 
   const WeatherIcon = getWeatherIcon(weatherData.weather_code)
 
@@ -128,7 +161,12 @@ export function CurrentWeatherCard({ layout = 'single', isDarkMode = false }: Cu
         <CardTitle className={`text-2xl font-bold ${isDarkMode ? 'text-white' : ''}`}>
           Aktuelles Wetter in Hohenmölsen
         </CardTitle>
-        <Switch />
+        {showToggle && (
+          <Switch
+            checked={isToggled}
+            onCheckedChange={handleToggle}
+          />
+        )}
       </CardHeader>
       <CardContent>
         <div className={`grid ${getGridClass()} gap-6`}>

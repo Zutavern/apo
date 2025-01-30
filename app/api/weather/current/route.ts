@@ -1,36 +1,100 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-const API_URL = 'https://api.open-meteo.com/v1/forecast'
-const HOHENMOLSEN_COORDS = {
-  latitude: 51.1667,
-  longitude: 12.0833
+// Supabase Client initialisieren
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Fehlende Umgebungsvariablen für Supabase')
 }
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
 
 export async function GET() {
   try {
-    const response = await fetch(
-      `${API_URL}?latitude=${HOHENMOLSEN_COORDS.latitude}&longitude=${HOHENMOLSEN_COORDS.longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,is_day,uv_index&daily=sunrise,sunset&timezone=Europe/Berlin`
-    )
+    // Hole die aktuellsten Wetterdaten aus der Datenbank
+    const { data: weatherData, error } = await supabase
+      .from('current_weather_data')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .single()
 
-    if (!response.ok) {
+    if (error) {
+      console.error('Fehler beim Abrufen der Wetterdaten:', error)
       throw new Error('Fehler beim Abrufen der Wetterdaten')
     }
 
-    const data = await response.json()
-
-    // Kombiniere current und daily Daten
-    const combinedData = {
-      ...data.current,
-      sunrise: data.daily.sunrise[0],
-      sunset: data.daily.sunset[0]
+    if (!weatherData) {
+      throw new Error('Keine Wetterdaten gefunden')
     }
 
-    return NextResponse.json({ success: true, data: combinedData })
+    return NextResponse.json({ 
+      success: true,
+      data: weatherData 
+    })
+
   } catch (error) {
     console.error('Fehler in /api/weather/current:', error)
     return NextResponse.json(
-      { success: false, error: 'Fehler beim Abrufen der Wetterdaten' },
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Fehler beim Abrufen der Wetterdaten' 
+      },
       { status: 500 }
     )
   }
+}
+
+// Hilfsfunktionen
+function getWindDirection(degrees: number): string {
+  const directions = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW']
+  const index = Math.round(degrees / 45) % 8
+  return directions[index]
+}
+
+function formatTime(dateString: string): string {
+  return new Date(dateString).toLocaleTimeString('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function getUVWarningLevel(uvIndex: number): 'low' | 'medium' | 'high' | 'extreme' {
+  if (uvIndex >= 8) return 'extreme'
+  if (uvIndex >= 6) return 'high'
+  if (uvIndex >= 3) return 'medium'
+  return 'low'
+}
+
+function getWeatherIcon(code: number): string {
+  // Basis-Mapping von Wettercodes zu Icons
+  const iconMap: { [key: number]: string } = {
+    0: 'Sun',        // Klar
+    1: 'SunDim',     // Überwiegend klar
+    2: 'Cloud',      // Teilweise bewölkt
+    3: 'CloudSun',   // Bewölkt
+    45: 'CloudFog',  // Neblig
+    48: 'CloudFog',  // Neblig mit Reif
+    51: 'CloudDrizzle', // Leichter Nieselregen
+    53: 'CloudRain',    // Mäßiger Nieselregen
+    55: 'CloudRain',    // Starker Nieselregen
+    61: 'CloudRain',    // Leichter Regen
+    63: 'CloudRain',    // Mäßiger Regen
+    65: 'CloudRain',    // Starker Regen
+    71: 'CloudSnow',    // Leichter Schneefall
+    73: 'CloudSnow',    // Mäßiger Schneefall
+    75: 'CloudSnow',    // Starker Schneefall
+    77: 'CloudSnow',    // Schneegriesel
+    80: 'CloudRain',    // Leichte Regenschauer
+    81: 'CloudRain',    // Mäßige Regenschauer
+    82: 'CloudRain',    // Starke Regenschauer
+    85: 'CloudSnow',    // Leichte Schneeschauer
+    86: 'CloudSnow',    // Starke Schneeschauer
+    95: 'CloudLightning', // Gewitter
+    96: 'CloudLightning', // Gewitter mit Hagel
+    99: 'CloudLightning'  // Starkes Gewitter mit Hagel
+  }
+  return iconMap[code] || 'Cloud'
 } 

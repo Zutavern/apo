@@ -3,6 +3,9 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
+import { CurrentWeatherCard } from '@/app/dashboard/weather/components/cards/CurrentWeatherCard'
 
 interface WeatherBackground {
   id: string
@@ -19,6 +22,7 @@ interface WeatherData {
   precipitation_sum: number
   weather_code: number
   time: string
+  is_expanded: boolean
 }
 
 export default function WeatherPortrait() {
@@ -68,17 +72,23 @@ export default function WeatherPortrait() {
 
   async function loadWeatherData() {
     try {
-      const response = await fetch('/api/weather/forecast/current')
-      const data = await response.json()
+      // Lade Forecast-Daten
+      const forecastResponse = await fetch('/api/weather/forecast/current')
+      const forecastData = await forecastResponse.json()
       
-      if (data.success && data.data.daily) {
-        const today = data.data.daily
+      // Lade aktuelle Wetterdaten
+      const currentResponse = await fetch('/api/weather/current')
+      const currentData = await currentResponse.json()
+      
+      if (forecastData.success && forecastData.data.daily) {
+        const today = forecastData.data.daily
         setWeatherData({
           temperature_2m_max: today.temperature_2m_max[0],
           temperature_2m_min: today.temperature_2m_min[0],
           precipitation_sum: today.precipitation_sum[0],
           weather_code: today.weather_code[0],
-          time: today.time[0]
+          time: today.time[0],
+          is_expanded: currentData.success ? currentData.data.is_expanded : false
         })
       }
     } catch (error) {
@@ -128,37 +138,50 @@ export default function WeatherPortrait() {
       />
       
       {/* Wetter-Kachel */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="bg-black/70 backdrop-blur-sm p-8 rounded-lg text-white w-[30%] mx-4">
-          <h1 className="text-2xl md:text-3xl font-semibold mb-4 text-center">
-            Das Wetter heute in Hohenmölsen
-          </h1>
-          <p className="text-xl text-center text-gray-300 mb-8">
-            am {formattedDate} um {formattedTime}
-          </p>
-          
-          {weatherData ? (
-            <div className="grid grid-cols-2 gap-6">
-              <div className="text-center">
-                <p className="text-base text-gray-400">Höchsttemperatur</p>
-                <p className="text-3xl font-bold">{weatherData.temperature_2m_max}°C</p>
+      {!weatherData?.is_expanded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-black/70 backdrop-blur-sm p-8 rounded-lg text-white w-[30%] mx-4">
+            <h1 className="text-2xl md:text-3xl font-semibold mb-4 text-center">
+              Das Wetter heute in Hohenmölsen
+            </h1>
+            <p className="text-xl text-center text-gray-300 mb-8">
+              am {formattedDate} um {formattedTime}
+            </p>
+            
+            {weatherData ? (
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center">
+                  <p className="text-base text-gray-400">Höchsttemperatur</p>
+                  <p className="text-3xl font-bold">{weatherData.temperature_2m_max}°C</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base text-gray-400">Tiefsttemperatur</p>
+                  <p className="text-3xl font-bold">{weatherData.temperature_2m_min}°C</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base text-gray-400">Niederschlag</p>
+                  <p className="text-3xl font-bold">{weatherData.precipitation_sum} mm</p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-base text-gray-400">Tiefsttemperatur</p>
-                <p className="text-3xl font-bold">{weatherData.temperature_2m_min}°C</p>
+            ) : (
+              <div className="text-center text-gray-400 text-xl">
+                Lade Wetterdaten...
               </div>
-              <div className="text-center">
-                <p className="text-base text-gray-400">Niederschlag</p>
-                <p className="text-3xl font-bold">{weatherData.precipitation_sum} mm</p>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center text-gray-400 text-xl">
-              Lade Wetterdaten...
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Erweiterte Wetterkarte */}
+      {weatherData?.is_expanded && (
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className="w-full max-w-7xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <CurrentWeatherCard layout="double" isDarkMode={true} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

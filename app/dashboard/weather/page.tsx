@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { RefreshCw, Image as ImageIcon, Monitor, LayoutGrid, Columns, Rows } from 'lucide-react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { CurrentWeatherCard } from './components/cards/CurrentWeatherCard'
+import { cn } from '@/lib/utils'
 
 type LayoutType = 'single' | 'double' | 'triple'
 
@@ -79,23 +80,25 @@ export default function WeatherDashboard() {
               <ImageIcon className="h-5 w-5 text-purple-500" />
             </button>
           </Link>
-          <Link href="/wetter/portrait">
-            <button className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors">
-              <Monitor className="h-5 w-5 text-green-500" />
-              <span>Portrait</span>
-            </button>
+          <Link
+            href="/public/wetter/portrait"
+            className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors"
+          >
+            <Monitor className="h-5 w-5 text-green-500" />
+            <span>Portrait</span>
           </Link>
-          <Link href="/wetter/landscape">
-            <button className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors">
-              <Monitor className="h-5 w-5 text-green-500" />
-              <span>Landscape</span>
-            </button>
+          <Link
+            href="/public/wetter/landscape"
+            className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors"
+          >
+            <Monitor className="h-5 w-5 text-green-500" />
+            <span>Landscape</span>
           </Link>
         </div>
       </div>
 
       <div className={getGridClass()}>
-        {/* Hier werden wir die neuen Wetterkarten einfügen */}
+        <CurrentWeatherCard layout={layout} />
       </div>
     </div>
   )

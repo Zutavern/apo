@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       const { error } = await supabase
         .from('current_weather_data')
         .upsert(weatherDataToSave, {
-          onConflict: 'location_id,timestamp'
+          onConflict: 'location_id'
         })
 
       if (error) {
@@ -130,4 +130,9 @@ export async function GET(request: Request) {
     
     return NextResponse.json(errorResponse, { status: 500 })
   }
+}
+
+// POST-Route hinzufügen
+export async function POST(request: Request) {
+  return GET(request) // Wiederverwendung der GET-Logik
 } 

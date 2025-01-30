@@ -20,14 +20,39 @@ export default function WeatherApiPage() {
   const handleUpdate = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/weather/update')
+      const response = await fetch('/api/weather/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      let errorMessage = 'Update fehlgeschlagen'
+      
       if (!response.ok) {
-        throw new Error('Update fehlgeschlagen')
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          // Falls die Antwort kein valides JSON ist
+          const textResponse = await response.text()
+          console.error('Server Antwort:', textResponse)
+          errorMessage = `Server Fehler: ${response.status}`
+        }
+        throw new Error(errorMessage)
       }
-      // Erfolgreich aktualisiert
-      window.location.reload()
+
+      try {
+        const data = await response.json()
+        console.log('Update erfolgreich:', data)
+        // Erfolgreich aktualisiert
+        window.location.reload()
+      } catch (e) {
+        throw new Error('Ungültiges Antwortformat vom Server')
+      }
     } catch (error) {
       console.error('Fehler beim Update:', error)
+      alert(error instanceof Error ? error.message : 'Ein unerwarteter Fehler ist aufgetreten')
     } finally {
       setIsLoading(false)
     }
@@ -117,7 +142,7 @@ export default function WeatherApiPage() {
       </div>
 
       <div className={getGridClass()}>
-        <CurrentWeatherCard layout={layout} isDarkMode={isDarkMode} />
+        <CurrentWeatherCard layout={layout} isDarkMode={isDarkMode} showToggle={true} />
         <ForecastCard layout={layout} isDarkMode={isDarkMode} />
         <PollenCard layout={layout} isDarkMode={isDarkMode} />
         <UVIndexCard layout={layout} isDarkMode={isDarkMode} />

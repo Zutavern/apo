@@ -20,7 +20,7 @@ values ('Hohenmölsen', 51.1667, 12.0833)
 on conflict (name) do nothing;
 
 -- Create the current_weather table with location reference
-create table if not exists current_weather (
+create table if not exists current_weather_data (
     id uuid primary key default gen_random_uuid(),
     location_id uuid not null references locations(id),
     temperature_2m float not null,
@@ -35,6 +35,7 @@ create table if not exists current_weather (
     surface_pressure float not null,
     sunrise timestamp with time zone,
     sunset timestamp with time zone,
+    is_expanded boolean default false,
     last_updated timestamp with time zone default now(),
     
     -- Ensure only one weather record per location
@@ -42,7 +43,7 @@ create table if not exists current_weather (
 );
 
 -- Create indexes
-create index if not exists current_weather_location_id_idx on current_weather(location_id);
+create index if not exists current_weather_location_id_idx on current_weather_data(location_id);
 create index if not exists locations_name_idx on locations(name);
 
 -- Create RLS policies for locations
@@ -64,19 +65,19 @@ to service_role
 using (true);
 
 -- Create RLS policies for current_weather
-alter table current_weather enable row level security;
+alter table current_weather_data enable row level security;
 
 create policy "Allow read access to authenticated users for current_weather"
-on current_weather for select
+on current_weather_data for select
 to authenticated
 using (true);
 
 create policy "Allow insert access to service role for current_weather"
-on current_weather for insert
+on current_weather_data for insert
 to service_role
 with check (true);
 
 create policy "Allow update access to service role for current_weather"
-on current_weather for update
+on current_weather_data for update
 to service_role
 using (true); 
