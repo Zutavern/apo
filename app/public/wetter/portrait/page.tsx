@@ -4,6 +4,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { CurrentWeatherCard } from '@/app/dashboard/weather/components/cards/CurrentWeatherCard'
+import { motion } from 'framer-motion'
 
 interface WeatherBackground {
   id: string
@@ -19,9 +20,13 @@ export default function WeatherPortrait() {
   const [selectedImage, setSelectedImage] = useState<WeatherBackground | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
     loadSelectedImage()
+    // Verzögere die Anzeige der Karte um einen kurzen Moment für einen schönen Effekt
+    const timer = setTimeout(() => setIsVisible(true), 100)
+    return () => clearTimeout(timer)
   }, [])
 
   async function loadSelectedImage() {
@@ -72,14 +77,25 @@ export default function WeatherPortrait() {
         unoptimized
       />
       
-      {/* Wetterkarte */}
-      <div className="absolute inset-0 flex items-center justify-center p-4">
+      {/* Wetterkarte mit Animation */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ 
+          opacity: isVisible ? 1 : 0, 
+          y: isVisible ? 0 : 20 
+        }}
+        transition={{ 
+          duration: 0.8,
+          ease: [0.4, 0, 0.2, 1]
+        }}
+        className="absolute inset-0 flex items-center justify-center p-4"
+      >
         <div className="w-full max-w-7xl">
           <div className="grid grid-cols-2 gap-6">
             <CurrentWeatherCard layout="double" isDarkMode={false} />
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 } 
