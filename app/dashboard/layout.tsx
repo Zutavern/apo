@@ -16,7 +16,10 @@ import {
   ShoppingCart,
   Share2,
   Monitor,
-  Tv
+  Tv,
+  Settings,
+  Layout as LayoutIcon,
+  Tag
 } from 'lucide-react'
 
 const menuItems = [
@@ -25,12 +28,6 @@ const menuItems = [
     icon: LayoutDashboard,
     href: '/dashboard',
     description: 'Dashboard & Statistiken'
-  },
-  {
-    title: 'Admin',
-    icon: Users,
-    href: '/dashboard/admin',
-    description: 'Benutzerverwaltung'
   },
   {
     title: 'ELAC',
@@ -63,16 +60,28 @@ const menuItems = [
     description: 'Wetterinformationen'
   },
   {
-    title: 'Shop',
-    icon: ShoppingCart,
-    href: '/dashboard/shop',
-    description: 'Shop verwalten'
+    title: 'Angebote',
+    icon: Tag,
+    href: '/dashboard/offers',
+    description: 'Angebote verwalten'
+  },
+  {
+    title: 'Homepage',
+    icon: LayoutIcon,
+    href: '/dashboard/homepage',
+    description: 'Homepage verwalten'
   },
   {
     title: 'Social Media',
     icon: Share2,
     href: '/dashboard/social',
     description: 'Social Media verwalten'
+  },
+  {
+    title: 'Einstellungen',
+    icon: Settings,
+    href: '/dashboard/settings',
+    description: 'System Einstellungen'
   }
 ]
 
@@ -87,13 +96,13 @@ export default function DashboardLayout({
 
   // Sidebar automatisch schließen bei Routenwechsel auf mobilen Geräten
   useEffect(() => {
-    if (window.innerWidth < 1024) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setSidebarOpen(false)
     }
   }, [pathname])
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 lg:flex">
+    <div className="min-h-screen bg-gray-900 text-gray-100 lg:flex" suppressHydrationWarning>
       {/* Header mit Mobile Menu Toggle */}
       <div className="fixed top-0 left-0 right-0 h-16 bg-gray-800 border-b border-gray-700 flex items-center lg:hidden z-40">
         <button
@@ -114,6 +123,7 @@ export default function DashboardLayout({
         className={`fixed top-0 left-0 h-screen w-64 bg-gray-800 border-r border-gray-700 transform transition-transform duration-200 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 z-30`}
+        suppressHydrationWarning
       >
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
