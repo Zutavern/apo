@@ -14,6 +14,8 @@ export default function DashboardPage() {
   const [newsCount, setNewsCount] = useState(0)
   const [lastNewsUpdate, setLastNewsUpdate] = useState<string | null>(null)
   const [layoutType, setLayoutType] = useState<'single' | 'double' | 'triple'>('triple')
+  const [currentPharmacyCount, setCurrentPharmacyCount] = useState(0)
+  const [lastPharmacyUpdate, setLastPharmacyUpdate] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -23,6 +25,18 @@ export default function DashboardPage() {
           router.push('/')
           return
         }
+
+        // Lade aktuelle Apotheken-Daten
+        const { count: pharmacies } = await supabase
+          .from('current_pharmacy_data')
+          .select('*', { count: 'exact', head: true })
+
+        // Hole das letzte Update-Datum
+        const { data: latestPharmacy } = await supabase
+          .from('current_pharmacy_data')
+          .select('created_at')
+          .order('created_at', { ascending: false })
+          .limit(1)
 
         // Lade Statistiken
         const { count: notdienste } = await supabase
@@ -44,6 +58,11 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(1)
 
+        // Debugging-Ausgabe hinzufügen
+        console.log('Latest Pharmacy Update:', latestPharmacy)
+
+        setCurrentPharmacyCount(pharmacies || 0)
+        setLastPharmacyUpdate(latestPharmacy?.[0]?.created_at || null)
         setNotdienstCount(notdienste || 0)
         setUserCount(users || 0)
         setNewsCount(news || 0)
@@ -128,7 +147,7 @@ export default function DashboardPage() {
       </div>
       
       <div className={getGridClass()}>
-        {/* Notdienst-Kachel */}
+        {/* Aktualisierte Notdienst-Kachel */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
@@ -137,9 +156,17 @@ export default function DashboardPage() {
             </div>
             <div className="space-y-4">
               <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                <dt className="text-sm text-gray-400">Aktuelle Notdienste</dt>
+                <dt className="text-sm text-gray-400">Aktuelle Notdienst-Apotheken</dt>
                 <dd className="mt-2 text-3xl font-semibold text-blue-500">
-                  {notdienstCount}
+                  {currentPharmacyCount}
+                </dd>
+              </div>
+              <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                <dt className="text-sm text-gray-400">Letztes Update</dt>
+                <dd className="mt-2 text-sm text-gray-300">
+                  {lastPharmacyUpdate 
+                    ? new Date(lastPharmacyUpdate).toLocaleString('de-DE')
+                    : 'Kein Update-Datum verfügbar'}
                 </dd>
               </div>
             </div>

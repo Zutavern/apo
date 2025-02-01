@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Settings as SettingsIcon, Users } from 'lucide-react'
+import { Settings as SettingsIcon, Users, Share2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
@@ -33,7 +33,26 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Weitere Einstellungs-Karten hier... */}
+        {/* Social Media Box */}
+        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Share2 className="h-5 w-5 text-purple-500" />
+              <h2 className="text-lg font-semibold text-gray-100">Social Media</h2>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              Social Media und Canva Verbindungen verwalten
+            </p>
+            <button 
+              className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
+              onClick={() => router.push('/dashboard/social')}
+            >
+              Social Media verwalten
+            </button>
+          </div>
+        </div>
+
+        {/* System Einstellungen */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-4">
@@ -49,8 +68,6 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-
-        {/* Platz für weitere Karten */}
       </div>
     </div>
   )

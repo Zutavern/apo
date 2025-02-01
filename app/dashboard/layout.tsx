@@ -14,12 +14,13 @@ import {
   LayoutDashboard,
   Cloud,
   ShoppingCart,
-  Share2,
   Monitor,
   Tv,
   Settings,
   Layout as LayoutIcon,
-  Tag
+  Tag,
+  Home,
+  Stethoscope
 } from 'lucide-react'
 
 const menuItems = [
@@ -70,12 +71,6 @@ const menuItems = [
     icon: LayoutIcon,
     href: '/dashboard/homepage',
     description: 'Homepage verwalten'
-  },
-  {
-    title: 'Social Media',
-    icon: Share2,
-    href: '/dashboard/social',
-    description: 'Social Media verwalten'
   },
   {
     title: 'Einstellungen',
