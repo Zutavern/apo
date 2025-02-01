@@ -18,6 +18,7 @@ import {
   Tv,
   Settings,
   Layout as LayoutIcon,
+  Handshake,
   Tag,
   Home,
   Stethoscope
@@ -41,6 +42,12 @@ const menuItems = [
     icon: Tv,
     href: '/dashboard/digital-signage',
     description: 'Screens verwalten'
+  },
+  {
+    title: 'Werbepartner',
+    icon: Handshake,
+    href: '/dashboard/partners',
+    description: 'Werbepartner verwalten'
   },
   {
     title: 'News',
