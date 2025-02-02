@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Tag, Plus, Trash2, Edit, X, Grid2X2, LayoutList, Image as ImageIcon, Smartphone, Monitor } from 'lucide-react'
+import { Tag, Plus, Trash2, Edit, X, Columns, Rows, Image as ImageIcon, Smartphone, Monitor } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -205,7 +205,7 @@ export default function OffersPage() {
             onPressedChange={(pressed) => setIsGridView(!pressed)}
             className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
           >
-            {isGridView ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
+            {isGridView ? <Rows className="h-5 w-5" /> : <Columns className="h-5 w-5" />}
           </Toggle>
           <Link href="/dashboard/offers/backgrounds">
             <button className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors">
@@ -266,7 +266,7 @@ export default function OffersPage() {
             <div className={cn(
               "grid gap-4",
               isGridView 
-                ? "grid-cols-1 lg:grid-cols-3" 
+                ? "grid-cols-1 lg:grid-cols-2" 
                 : "grid-cols-1"
             )}>
               {products.map((product) => (
