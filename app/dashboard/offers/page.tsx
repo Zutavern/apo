@@ -200,13 +200,12 @@ export default function OffersPage() {
           <h1 className="text-2xl font-bold text-gray-100">Angebotsverwaltung</h1>
         </div>
         <div className="flex items-center justify-end gap-2">
-          <Toggle
-            pressed={!isGridView}
-            onPressedChange={(pressed) => setIsGridView(!pressed)}
+          <button
+            onClick={() => setIsGridView(!isGridView)}
             className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
           >
             {isGridView ? <Rows className="h-5 w-5" /> : <Columns className="h-5 w-5" />}
-          </Toggle>
+          </button>
           <Link href="/dashboard/offers/backgrounds">
             <button className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors">
               <ImageIcon className="h-5 w-5 text-purple-500" />
