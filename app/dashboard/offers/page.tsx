@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Tag, Plus, Trash2, Edit, X, LayoutGrid, LayoutList } from 'lucide-react'
+import { Tag, Plus, Trash2, Edit, X, Grid2X2, LayoutList } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,7 @@ interface Product {
   image_url: string
   price: number
   discount: number
+  package_size: number | null
   created_at?: string
   updated_at?: string
 }
@@ -36,7 +37,8 @@ export default function OffersPage() {
     description: ['', '', '', '', ''],
     image: '',
     price: '',
-    discount: ''
+    discount: '',
+    package_size: ''
   })
 
   const supabase = createClientComponentClient()
@@ -87,7 +89,8 @@ export default function OffersPage() {
         description: formData.description.filter(bullet => bullet.trim() !== ''),
         image_url: formData.image,
         price: parseFloat(formData.price),
-        discount: parseFloat(formData.discount) || 0
+        discount: parseFloat(formData.discount) || 0,
+        package_size: formData.package_size ? parseInt(formData.package_size) : null
       }
 
       if (editingProduct) {
@@ -111,7 +114,8 @@ export default function OffersPage() {
           description: ['', '', '', '', ''],
           image: '',
           price: '',
-          discount: ''
+          discount: '',
+          package_size: ''
         })
       }
 
@@ -135,7 +139,8 @@ export default function OffersPage() {
       description: description,
       image: product.image_url,
       price: product.price.toString(),
-      discount: product.discount.toString()
+      discount: product.discount.toString(),
+      package_size: product.package_size ? product.package_size.toString() : ''
     })
     setIsDialogOpen(true)
   }
@@ -200,7 +205,7 @@ export default function OffersPage() {
               "bg-gray-900/50 border-gray-700 hover:bg-gray-800 text-white"
             )}
           >
-            {isGridView ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            {isGridView ? <LayoutList className="h-4 w-4" /> : <Grid2X2 className="h-4 w-4" />}
           </Toggle>
         </div>
       </div>
@@ -227,7 +232,8 @@ export default function OffersPage() {
                   description: ['', '', '', '', ''],
                   image: '',
                   price: '',
-                  discount: ''
+                  discount: '',
+                  package_size: ''
                 })
                 setEditingProduct(null)
                 setIsDialogOpen(true)
@@ -243,8 +249,8 @@ export default function OffersPage() {
             <div className={cn(
               "grid gap-4",
               isGridView 
-                ? "grid-cols-1 md:grid-cols-3" 
-                : "grid-cols-1 md:grid-cols-2"
+                ? "grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3" 
+                : "grid-cols-1 xl:grid-cols-2"
             )}>
               {products.map((product) => (
                 <div 
@@ -288,10 +294,35 @@ export default function OffersPage() {
                         ))}
                       </div>
                       <div className="flex items-center gap-2 mt-3">
-                        <span className="text-gray-300">{product.price.toFixed(2)} €</span>
-                        {product.discount > 0 && (
-                          <span className="text-sm text-red-500">-{product.discount}%</span>
-                        )}
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2 text-sm">
+                            {product.discount > 0 && (
+                              <span className="text-xs font-medium text-white bg-red-500 px-1.5 py-0.5 rounded">
+                                -{product.discount}%
+                              </span>
+                            )}
+                            <span className={cn(
+                              "text-xs text-gray-300 whitespace-nowrap",
+                              product.discount > 0 && "text-gray-500 line-through"
+                            )}>
+                              {product.price.toFixed(2).replace('.', ',')} €
+                              <span className="align-super text-[1.1em]">*</span>
+                            </span>
+                          </div>
+                          {product.discount > 0 && (
+                            <span className="text-5xl font-bold text-white mt-1">
+                              {Math.floor(product.price * (1 - product.discount / 100))},
+                              <span className="relative">
+                                <span className="absolute top-0 left-0 text-3xl">
+                                  {((product.price * (1 - product.discount / 100) % 1) * 100).toFixed(0).padStart(2, '0')}€
+                                </span>
+                                <span className="text-xs text-gray-400 whitespace-nowrap">
+                                  ({((product.price * (1 - product.discount / 100)) / (product.package_size || 1)).toFixed(2).replace('.', ',')}€/St)
+                                </span>
+                              </span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -324,7 +355,8 @@ export default function OffersPage() {
                     description: ['', '', '', '', ''],
                     image: '',
                     price: '',
-                    discount: ''
+                    discount: '',
+                    package_size: ''
                   })
                   setEditingProduct(null)
                   setIsDialogOpen(true)
@@ -463,6 +495,20 @@ export default function OffersPage() {
                 <p className="text-xs text-gray-400 mt-1">Optional: 0-100%</p>
               </div>
             </div>
+            <div>
+              <label className="text-sm font-medium text-gray-300 mb-1 block">
+                Packungsgröße
+              </label>
+              <Input
+                type="number"
+                value={formData.package_size}
+                onChange={(e) => setFormData({ ...formData, package_size: e.target.value })}
+                className="bg-gray-900 border-gray-700 text-gray-100"
+                placeholder="z.B. 20"
+                min="1"
+              />
+              <p className="text-xs text-gray-400 mt-1">Optional: Anzahl der Stück pro Packung</p>
+            </div>
           </div>
           <div className="flex justify-end gap-4 mt-6">
             <Button
@@ -476,7 +522,8 @@ export default function OffersPage() {
                   description: ['', '', '', '', ''],
                   image: '',
                   price: '',
-                  discount: ''
+                  discount: '',
+                  package_size: ''
                 })
               }}
             >
