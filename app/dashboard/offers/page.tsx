@@ -28,6 +28,7 @@ interface Product {
 export default function OffersPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
@@ -192,6 +193,17 @@ export default function OffersPage() {
     }
   }
 
+  const getItemsPerPage = () => {
+    return isGridView ? 4 : 2
+  }
+
+  const getCurrentPageItems = () => {
+    const startIndex = (currentPage - 1) * getItemsPerPage()
+    return products.slice(startIndex, startIndex + getItemsPerPage())
+  }
+
+  const totalPages = Math.ceil(products.length / getItemsPerPage())
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -268,7 +280,7 @@ export default function OffersPage() {
                 ? "grid-cols-1 lg:grid-cols-2" 
                 : "grid-cols-1"
             )}>
-              {products.map((product) => (
+              {getCurrentPageItems().map((product) => (
                 <div 
                   key={product.id} 
                   className={cn(
@@ -362,6 +374,35 @@ export default function OffersPage() {
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-4 flex justify-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className={cn(
+                  "px-4 py-2 rounded-lg",
+                  currentPage === 1
+                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                )}
+              >
+                Zurück
+              </button>
+              <span className="px-4 py-2 bg-gray-800 rounded-lg">
+                Seite {currentPage} von {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className={cn(
+                  "px-4 py-2 rounded-lg",
+                  currentPage === totalPages
+                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                )}
+              >
+                Weiter
+              </button>
             </div>
             <div className="flex justify-end mt-6">
               <Button 
