@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Tag, Plus, Trash2, Edit, X, Grid2X2, LayoutList } from 'lucide-react'
+import { Tag, Plus, Trash2, Edit, X, Grid2X2, LayoutList, Image as ImageIcon, Smartphone, Monitor } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import Image from 'next/image'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cn } from "@/lib/utils"
+import Link from 'next/link'
 
 interface Product {
   id: string
@@ -34,12 +35,14 @@ export default function OffersPage() {
   const [maxCardHeight, setMaxCardHeight] = useState(0)
   const [formData, setFormData] = useState({
     name: '',
-    description: ['', '', '', '', ''],
+    description: ['', '', ''],
     image: '',
     price: '',
     discount: '',
     package_size: ''
   })
+  const [showBackground, setShowBackground] = useState(false)
+  const [isPortrait, setIsPortrait] = useState(true)
 
   const supabase = createClientComponentClient()
 
@@ -111,7 +114,7 @@ export default function OffersPage() {
         toast.success('Produkt wurde angelegt')
         setFormData({
           name: '',
-          description: ['', '', '', '', ''],
+          description: ['', '', ''],
           image: '',
           price: '',
           discount: '',
@@ -131,7 +134,7 @@ export default function OffersPage() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product)
-    const description = Array(5).fill('').map((_, index) => 
+    const description = Array(3).fill('').map((_, index) => 
       product.description[index] || ''
     )
     setFormData({
@@ -200,13 +203,27 @@ export default function OffersPage() {
           <Toggle
             pressed={!isGridView}
             onPressedChange={(pressed) => setIsGridView(!pressed)}
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "bg-gray-900/50 border-gray-700 hover:bg-gray-800 text-white"
-            )}
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
           >
-            {isGridView ? <LayoutList className="h-4 w-4" /> : <Grid2X2 className="h-4 w-4" />}
+            {isGridView ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
           </Toggle>
+          <Link href="/dashboard/offers/backgrounds">
+            <button className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors">
+              <ImageIcon className="h-5 w-5 text-purple-500" />
+            </button>
+          </Link>
+          <Link href="/public/offers/portrait">
+            <button className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors">
+              <Monitor className="h-5 w-5 text-green-500" />
+              <span>Portrait</span>
+            </button>
+          </Link>
+          <Link href="/public/offers/landscape">
+            <button className="inline-flex items-center justify-center gap-2 px-4 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-green-500 transition-colors">
+              <Monitor className="h-5 w-5 text-green-500" />
+              <span>Landscape</span>
+            </button>
+          </Link>
         </div>
       </div>
 
@@ -229,7 +246,7 @@ export default function OffersPage() {
               onClick={() => {
                 setFormData({
                   name: '',
-                  description: ['', '', '', '', ''],
+                  description: ['', '', ''],
                   image: '',
                   price: '',
                   discount: '',
@@ -249,8 +266,8 @@ export default function OffersPage() {
             <div className={cn(
               "grid gap-4",
               isGridView 
-                ? "grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3" 
-                : "grid-cols-1 xl:grid-cols-2"
+                ? "grid-cols-1 lg:grid-cols-3" 
+                : "grid-cols-1"
             )}>
               {products.map((product) => (
                 <div 
@@ -352,7 +369,7 @@ export default function OffersPage() {
                 onClick={() => {
                   setFormData({
                     name: '',
-                    description: ['', '', '', '', ''],
+                    description: ['', '', ''],
                     image: '',
                     price: '',
                     discount: '',
@@ -392,7 +409,7 @@ export default function OffersPage() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-300 mb-1 block">
-                Produktmerkmale (max. 5)
+                Produktmerkmale (max. 3)
               </label>
               <div className="space-y-2">
                 {formData.description.map((bullet, index) => (
@@ -409,9 +426,7 @@ export default function OffersPage() {
                       placeholder={[
                         "z.B. Schmerzlinderung",
                         "z.B. Fiebersenkend",
-                        "z.B. Entzündungshemmend",
-                        "z.B. Schnell wirksam",
-                        "z.B. Gut verträglich"
+                        "z.B. Entzündungshemmend"
                       ][index]}
                     />
                   </div>
@@ -519,7 +534,7 @@ export default function OffersPage() {
                 setEditingProduct(null)
                 setFormData({
                   name: '',
-                  description: ['', '', '', '', ''],
+                  description: ['', '', ''],
                   image: '',
                   price: '',
                   discount: '',
