@@ -44,6 +44,7 @@ export default function OffersPage() {
   })
   const [showBackground, setShowBackground] = useState(false)
   const [isPortrait, setIsPortrait] = useState(true)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const supabase = createClientComponentClient()
 
@@ -285,10 +286,55 @@ export default function OffersPage() {
                   key={product.id} 
                   className={cn(
                     "bg-gray-800 rounded-lg border border-gray-700 p-4",
-                    "flex flex-col gap-4"
+                    "flex flex-col gap-4 relative group",
+                    "transition-all duration-200"
                   )}
                   style={isGridView ? { minHeight: maxCardHeight > 0 ? `${maxCardHeight + 32}px` : 'auto' } : {}}
                 >
+                  <div className={cn(
+                    "absolute inset-0 bg-black/0 group-hover:bg-gray-950/95 backdrop-blur-sm",
+                    "opacity-0 invisible lg:group-hover:opacity-100 lg:group-hover:visible",
+                    "transition-all duration-300 ease-in-out rounded-lg z-10",
+                    "flex items-center justify-center gap-4"
+                  )}>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleEdit(product)}
+                      className="bg-blue-500/80 hover:bg-blue-500 border-white/10 text-white backdrop-blur-sm"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Angebot ändern
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDeleteConfirmId(product.id)}
+                      className="bg-red-500/80 hover:bg-red-500 border-white/10 text-white backdrop-blur-sm"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Angebot löschen
+                    </Button>
+                  </div>
+                  <div className={cn(
+                    "absolute top-4 right-4 flex gap-2",
+                    "lg:hidden"
+                  )}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(product)}
+                      className="hover:bg-gray-700"
+                    >
+                      <Edit className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(product.id)}
+                      className="hover:bg-gray-700"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
                   <div className="flex gap-4">
                     <div className={cn(
                       "relative rounded-lg overflow-hidden",
@@ -311,28 +357,26 @@ export default function OffersPage() {
                     <div className={cn(
                       "flex-1 min-w-0 product-card-content"
                     )}>
-                      <div className="flex items-center mb-2">
-                        <h3 className="text-lg font-semibold text-gray-100">{product.name}</h3>
-                      </div>
-                      <div className={cn(
-                        "flex justify-between",
-                      )}>
-                        <div className="space-y-1">
-                          {product.description.map((desc, index) => (
-                            desc && (
-                              <div key={index} className="flex items-center gap-2">
-                                <span className="text-blue-500 text-lg leading-none">•</span>
-                                <span className="text-sm text-gray-400 leading-tight">{desc}</span>
-                              </div>
-                            )
-                          ))}
+                      <div className="flex justify-between h-full items-center">
+                        <div className="flex flex-col">
+                          <h3 className="text-lg font-semibold text-gray-100 mb-2">{product.name}</h3>
+                          <div className="space-y-1">
+                            {product.description.map((desc, index) => (
+                              desc && (
+                                <div key={index} className="flex items-center gap-2">
+                                  <span className="text-blue-500 text-lg leading-none">•</span>
+                                  <span className="text-sm text-gray-400 leading-tight">{desc}</span>
+                                </div>
+                              )
+                            ))}
+                          </div>
                         </div>
                         <div className={cn(
                           "flex items-end flex-col gap-2",
-                          "ml-4"
+                          "ml-4 w-[380px] pr-6"
                         )}>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2 text-sm">
+                          <div className="flex flex-col w-full">
+                            <div className="flex items-center justify-end gap-2 text-sm w-full">
                               {product.discount > 0 && (
                                 <span className="text-xs font-medium text-white bg-red-500 px-1.5 py-0.5 rounded">
                                   -{product.discount}%
@@ -347,40 +391,28 @@ export default function OffersPage() {
                               </span>
                             </div>
                             {product.discount > 0 && (
-                              <span className="text-5xl font-bold text-white mt-1">
-                                {Math.floor(product.price * (1 - product.discount / 100))},
-                                <span className="relative">
-                                  <span className="absolute top-0 left-0 text-3xl">
+                              <div className="flex justify-end items-baseline mt-1 w-full">
+                                <span className="text-5xl font-bold text-white tabular-nums">
+                                  {Math.floor(product.price * (1 - product.discount / 100))},
+                                  <span className="text-2xl align-top">
                                     {((product.price * (1 - product.discount / 100) % 1) * 100).toFixed(0).padStart(2, '0')}€
                                   </span>
-                                  <span className="text-xs text-gray-400 whitespace-nowrap">
-                                    ({((product.price * (1 - product.discount / 100)) / (product.package_size || 1)).toFixed(2).replace('.', ',')}€/St)
-                                  </span>
                                 </span>
-                              </span>
+                              </div>
+                            )}
+                            {product.discount > 0 && (
+                              <div className="flex justify-end w-full -mt-4">
+                                <span className={cn(
+                                  "text-xs text-gray-400 whitespace-nowrap translate-x-8"
+                                )}>
+                                  ({((product.price * (1 - product.discount / 100)) / (product.package_size || 1)).toFixed(2).replace('.', ',')}€/St)
+                                </span>
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex justify-end gap-2 mt-auto">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(product)}
-                      className="hover:bg-gray-700"
-                    >
-                      <Edit className="h-4 w-4 text-blue-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(product.id)}
-                      className="hover:bg-gray-700"
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -599,6 +631,38 @@ export default function OffersPage() {
               className="bg-blue-500 hover:bg-blue-600"
             >
               {editingProduct ? 'Aktualisieren' : 'Erstellen'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmId !== null} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="bg-gray-800 text-gray-100 border-gray-700">
+          <DialogHeader>
+            <DialogTitle>Angebot löschen</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Sind Sie sicher, dass Sie dieses Angebot löschen möchten?</p>
+            <p className="text-sm text-gray-400 mt-2">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+          </div>
+          <div className="flex justify-end gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmId(null)}
+              className="bg-gray-900/50 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-300"
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => {
+                if (deleteConfirmId) {
+                  handleDelete(deleteConfirmId)
+                  setDeleteConfirmId(null)
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Löschen
             </Button>
           </div>
         </DialogContent>
