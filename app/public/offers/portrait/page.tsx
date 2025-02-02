@@ -10,6 +10,7 @@ export default function PublicOffersPortrait() {
   useEffect(() => {
     async function loadBackground() {
       try {
+        console.log('Loading portrait background...')
         const { data, error } = await supabase
           .from('offer_backgrounds')
           .select('*')
@@ -17,10 +18,17 @@ export default function PublicOffersPortrait() {
           .eq('is_selected', true)
           .single()
 
+        console.log('Query result:', { data, error })
+
         if (error) throw error
 
         if (data) {
-          const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${data.bucket_name}/${data.storage_path}`
+          const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/bg_offers-pt/${data.storage_path}`
+          console.log('Generated URL:', imageUrl)
+          // Test if image is accessible
+          fetch(imageUrl)
+            .then(res => console.log('Image fetch status:', res.status))
+            .catch(err => console.error('Image fetch error:', err))
           setBackground(imageUrl)
         }
       } catch (error) {
