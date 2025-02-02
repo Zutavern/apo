@@ -292,26 +292,31 @@ export default function OffersPage() {
                   <div className="flex gap-4">
                     <div className={cn(
                       "relative rounded-lg overflow-hidden",
-                      isGridView ? "w-24 h-24" : "w-32 h-32"
+                      isGridView ? "w-24 h-24" : "w-32 h-32",
+                      "bg-white flex items-center justify-center"
                     )}>
                       {product.image_url ? (
                         <Image
                           src={product.image_url}
                           alt={product.name}
                           fill
-                          className="object-cover"
+                          className="object-contain p-3 hover:scale-110 transition-transform"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-900/50 flex items-center justify-center">
+                        <div className="w-full h-full flex items-center justify-center">
                           <Tag className="h-6 w-6 text-gray-600" />
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 product-card-content">
+                    <div className={cn(
+                      "flex-1 min-w-0 product-card-content"
+                    )}>
                       <div className="flex items-center mb-2">
                         <h3 className="text-lg font-semibold text-gray-100">{product.name}</h3>
                       </div>
-                      <div className="flex justify-between">
+                      <div className={cn(
+                        "flex justify-between",
+                      )}>
                         <div className="space-y-1">
                           {product.description.map((desc, index) => (
                             desc && (
@@ -322,7 +327,10 @@ export default function OffersPage() {
                             )
                           ))}
                         </div>
-                        <div className="flex items-end flex-col gap-2 ml-8">
+                        <div className={cn(
+                          "flex items-end flex-col gap-2",
+                          "ml-4"
+                        )}>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2 text-sm">
                               {product.discount > 0 && (
