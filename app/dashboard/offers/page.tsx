@@ -308,48 +308,50 @@ export default function OffersPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0 product-card-content">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center mb-2">
                         <h3 className="text-lg font-semibold text-gray-100">{product.name}</h3>
                       </div>
-                      <div className="space-y-1">
-                        {product.description.map((desc, index) => (
-                          desc && (
-                            <div key={index} className="flex items-center gap-2">
-                              <span className="text-blue-500 text-lg leading-none">•</span>
-                              <span className="text-sm text-gray-400 leading-tight">{desc}</span>
+                      <div className="flex justify-between">
+                        <div className="space-y-1">
+                          {product.description.map((desc, index) => (
+                            desc && (
+                              <div key={index} className="flex items-center gap-2">
+                                <span className="text-blue-500 text-lg leading-none">•</span>
+                                <span className="text-sm text-gray-400 leading-tight">{desc}</span>
+                              </div>
+                            )
+                          ))}
+                        </div>
+                        <div className="flex items-end flex-col gap-2 ml-8">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2 text-sm">
+                              {product.discount > 0 && (
+                                <span className="text-xs font-medium text-white bg-red-500 px-1.5 py-0.5 rounded">
+                                  -{product.discount}%
+                                </span>
+                              )}
+                              <span className={cn(
+                                "text-xs text-gray-300 whitespace-nowrap",
+                                product.discount > 0 && "text-gray-500 line-through"
+                              )}>
+                                {product.price.toFixed(2).replace('.', ',')} €
+                                <span className="align-super text-[1.1em]">*</span>
+                              </span>
                             </div>
-                          )
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2 text-sm">
                             {product.discount > 0 && (
-                              <span className="text-xs font-medium text-white bg-red-500 px-1.5 py-0.5 rounded">
-                                -{product.discount}%
+                              <span className="text-5xl font-bold text-white mt-1">
+                                {Math.floor(product.price * (1 - product.discount / 100))},
+                                <span className="relative">
+                                  <span className="absolute top-0 left-0 text-3xl">
+                                    {((product.price * (1 - product.discount / 100) % 1) * 100).toFixed(0).padStart(2, '0')}€
+                                  </span>
+                                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                                    ({((product.price * (1 - product.discount / 100)) / (product.package_size || 1)).toFixed(2).replace('.', ',')}€/St)
+                                  </span>
+                                </span>
                               </span>
                             )}
-                            <span className={cn(
-                              "text-xs text-gray-300 whitespace-nowrap",
-                              product.discount > 0 && "text-gray-500 line-through"
-                            )}>
-                              {product.price.toFixed(2).replace('.', ',')} €
-                              <span className="align-super text-[1.1em]">*</span>
-                            </span>
                           </div>
-                          {product.discount > 0 && (
-                            <span className="text-5xl font-bold text-white mt-1">
-                              {Math.floor(product.price * (1 - product.discount / 100))},
-                              <span className="relative">
-                                <span className="absolute top-0 left-0 text-3xl">
-                                  {((product.price * (1 - product.discount / 100) % 1) * 100).toFixed(0).padStart(2, '0')}€
-                                </span>
-                                <span className="text-xs text-gray-400 whitespace-nowrap">
-                                  ({((product.price * (1 - product.discount / 100)) / (product.package_size || 1)).toFixed(2).replace('.', ',')}€/St)
-                                </span>
-                              </span>
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
