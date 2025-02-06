@@ -99,7 +99,6 @@ export default function PublicOffersLandscape() {
       className="w-screen h-screen bg-cover bg-center bg-no-repeat relative"
       style={{ backgroundImage: `url(${background})` }}
     >
-      <div className="absolute inset-0 bg-black/40" /> {/* Overlay für bessere Lesbarkeit */}
       <div className="relative z-10 w-full h-full p-8 flex items-center justify-center translate-y-12">
         <div className="grid grid-cols-2 gap-8 auto-rows-min w-[1680px]">
           <AnimatePresence mode="wait">

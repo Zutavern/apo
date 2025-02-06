@@ -20,12 +20,14 @@ export default function PublicOffersPortrait() {
   const [background, setBackground] = useState<string | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [currentSet, setCurrentSet] = useState(0)
+  const [isVisible, setIsVisible] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
   const supabase = createClientComponentClient()
 
-  const DISPLAY_TIME = 35000
-  const PRODUCTS_PER_PAGE = 4
+  const DISPLAY_TIME = 30000 // 30 Sekunden Anzeigezeit
+  const FADE_DURATION = 1200 // 1.2 Sekunden für Fade
+  const PRODUCTS_PER_PAGE = 5
 
   useEffect(() => {
     loadBackground()
@@ -33,11 +35,28 @@ export default function PublicOffersPortrait() {
     const interval = setInterval(loadBackground, 60000)
     const productsInterval = setInterval(loadProducts, 60000)
 
+    // Start die Produkt-Rotation
+    const rotationTimer = setInterval(() => {
+      // Erst ausblenden
+      setIsVisible(false)
+      
+      // Nach der Ausblend-Animation den Set wechseln und wieder einblenden
+      setTimeout(() => {
+        setCurrentSet(current => {
+          const totalSets = Math.ceil(products.length / PRODUCTS_PER_PAGE)
+          return current + 1 >= totalSets ? 0 : current + 1
+        })
+        setIsVisible(true)
+      }, FADE_DURATION)
+      
+    }, DISPLAY_TIME)
+
     return () => {
       clearInterval(interval)
       clearInterval(productsInterval)
+      clearInterval(rotationTimer)
     }
-  }, [])
+  }, [products.length])
 
   async function loadBackground() {
     try {
@@ -77,7 +96,16 @@ export default function PublicOffersPortrait() {
 
   const getCurrentProducts = () => {
     const start = currentSet * PRODUCTS_PER_PAGE
-    return products.slice(start, start + PRODUCTS_PER_PAGE)
+    let currentProducts = products.slice(start, start + PRODUCTS_PER_PAGE)
+    
+    // Wenn weniger als 5 Produkte im aktuellen Set sind, fülle mit Produkten vom Anfang auf
+    if (currentProducts.length < PRODUCTS_PER_PAGE) {
+      const remainingCount = PRODUCTS_PER_PAGE - currentProducts.length
+      const productsFromStart = products.slice(0, remainingCount)
+      currentProducts = [...currentProducts, ...productsFromStart]
+    }
+    
+    return currentProducts
   }
 
   if (isLoading) {
@@ -109,15 +137,15 @@ export default function PublicOffersPortrait() {
       <div className="absolute inset-0 flex flex-col justify-center p-4">
         <div className="w-full max-w-4xl mx-auto space-y-6">
           <AnimatePresence mode="sync">
-            {getCurrentProducts().map((product, index) => (
+            {isVisible && getCurrentProducts().map((product, index) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ 
-                  duration: 1.2,
-                  delay: index * 0.4,
+                  duration: 0.8,
+                  delay: index * 0.15,
                   ease: "easeOut"
                 }}
               >
