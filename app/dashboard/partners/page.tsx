@@ -186,26 +186,105 @@ export default function PartnersPage() {
     })
     try {
       setIsLoading(true)
-      const { error } = await supabase
-        .from('partners')
-        .delete()
-        .eq('id', id)
 
-      if (error) {
-        console.error('❌ Fehler beim Löschen des Partners:', {
-          error: error.message,
-          details: error,
+      // Zuerst die Bilder aus dem Storage löschen
+      const partner = partners.find(p => p.id === id)
+      console.log('📄 Partner-Daten für Löschung:', {
+        id,
+        gefunden: !!partner,
+        hatLandscapeBild: !!partner?.landscape_image,
+        hatPortraitBild: !!partner?.portrait_image,
+        timestamp: new Date().toISOString()
+      })
+
+      if (partner) {
+        if (partner.landscape_image) {
+          const fileName = partner.landscape_image.split('/').pop()
+          console.log('🖼️ Versuche Landscape-Bild zu löschen:', {
+            originalUrl: partner.landscape_image,
+            fileName,
+            timestamp: new Date().toISOString()
+          })
+          if (fileName) {
+            const { error: landscapeError } = await supabase.storage
+              .from('partner-images')
+              .remove([fileName])
+            
+            if (landscapeError) {
+              console.error('❌ Fehler beim Löschen des Landscape-Bildes:', {
+                error: landscapeError.message,
+                fileName,
+                timestamp: new Date().toISOString()
+              })
+            } else {
+              console.log('✅ Landscape-Bild erfolgreich gelöscht:', {
+                fileName,
+                timestamp: new Date().toISOString()
+              })
+            }
+          }
+        }
+
+        if (partner.portrait_image) {
+          const fileName = partner.portrait_image.split('/').pop()
+          console.log('🖼️ Versuche Portrait-Bild zu löschen:', {
+            originalUrl: partner.portrait_image,
+            fileName,
+            timestamp: new Date().toISOString()
+          })
+          if (fileName) {
+            const { error: portraitError } = await supabase.storage
+              .from('partner-images')
+              .remove([fileName])
+            
+            if (portraitError) {
+              console.error('❌ Fehler beim Löschen des Portrait-Bildes:', {
+                error: portraitError.message,
+                fileName,
+                timestamp: new Date().toISOString()
+              })
+            } else {
+              console.log('✅ Portrait-Bild erfolgreich gelöscht:', {
+                fileName,
+                timestamp: new Date().toISOString()
+              })
+            }
+          }
+        }
+      }
+
+      // Zuerst die Tracking-Einträge löschen
+      console.log('🗑️ Starte Löschung mit Transaktion:', {
+        partnerId: id,
+        timestamp: new Date().toISOString()
+      })
+
+      // Starte Transaktion
+      const { error: transactionError } = await supabase.rpc('delete_partner_with_dependencies', {
+        partner_id: id
+      })
+
+      if (transactionError) {
+        console.error('❌ Fehler in der Lösch-Transaktion:', {
+          error: transactionError.message,
+          details: transactionError,
           partnerId: id,
           timestamp: new Date().toISOString()
         })
-        throw error
+        throw transactionError
       }
 
-      console.log('✅ Partner erfolgreich gelöscht:', {
+      console.log('✅ Partner und alle abhängigen Daten erfolgreich gelöscht:', {
         id,
         timestamp: new Date().toISOString()
       })
+      
+      // UI aktualisieren
       setPartners(partners.filter(p => p.id !== id))
+      console.log('🔄 UI wurde aktualisiert:', {
+        verbleibendeParter: partners.length - 1,
+        timestamp: new Date().toISOString()
+      })
     } catch (error) {
       console.error('❌ Unerwarteter Fehler beim Löschen des Partners:', {
         error,
