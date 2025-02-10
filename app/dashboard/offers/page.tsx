@@ -1,8 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Tag, Plus, Trash2, Edit, X, Columns, Rows, Image as ImageIcon, Smartphone, Monitor } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tag, Plus, Trash2, Edit, X, Columns, Rows, Image as ImageIcon, Smartphone, Monitor, Settings } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -45,6 +51,9 @@ export default function OffersPage() {
   const [showBackground, setShowBackground] = useState(false)
   const [isPortrait, setIsPortrait] = useState(true)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [isColorDialogOpen, setIsColorDialogOpen] = useState(false)
+  const [backgroundColor, setBackgroundColor] = useState('#1f2937')
+  const [displayDuration, setDisplayDuration] = useState(30)
 
   const supabase = createClientComponentClient()
 
@@ -205,6 +214,53 @@ export default function OffersPage() {
 
   const totalPages = Math.ceil(products.length / getItemsPerPage())
 
+  const resetColor = () => {
+    setBackgroundColor('#1f2937')
+  }
+
+  const handleSaveSettings = async () => {
+    try {
+      // Prüfe ob bereits ein Eintrag existiert
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from('offer_settings')
+        .select('*')
+        .single()
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError
+      }
+
+      if (existingSettings) {
+        // Update existierenden Eintrag
+        const { error } = await supabase
+          .from('offer_settings')
+          .update({
+            background_color: backgroundColor,
+            display_duration: displayDuration
+          })
+          .eq('id', existingSettings.id)
+
+        if (error) throw error
+      } else {
+        // Erstelle neuen Eintrag
+        const { error } = await supabase
+          .from('offer_settings')
+          .insert({
+            background_color: backgroundColor,
+            display_duration: displayDuration
+          })
+
+        if (error) throw error
+      }
+
+      toast.success('Einstellungen wurden gespeichert')
+      setIsColorDialogOpen(false)
+    } catch (error) {
+      console.error('Fehler beim Speichern der Einstellungen:', error)
+      toast.error('Fehler beim Speichern der Einstellungen')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -213,6 +269,13 @@ export default function OffersPage() {
           <h1 className="text-2xl font-bold text-gray-100">Angebotsverwaltung</h1>
         </div>
         <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => setIsColorDialogOpen(true)}
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
+            title="Farbeinstellungen"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
           <button
             onClick={() => setIsGridView(!isGridView)}
             className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
@@ -476,6 +539,11 @@ export default function OffersPage() {
             <DialogTitle>
               {editingProduct ? 'Angebot bearbeiten' : 'Neues Angebot erstellen'}
             </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {editingProduct 
+                ? 'Bearbeiten Sie die Details des ausgewählten Angebots' 
+                : 'Fügen Sie ein neues Angebot hinzu'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
@@ -640,10 +708,12 @@ export default function OffersPage() {
         <DialogContent className="bg-gray-800 text-gray-100 border-gray-700">
           <DialogHeader>
             <DialogTitle>Angebot löschen</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p>Sind Sie sicher, dass Sie dieses Angebot löschen möchten?</p>
-            <p className="text-sm text-gray-400 mt-2">Diese Aktion kann nicht rückgängig gemacht werden.</p>
           </div>
           <div className="flex justify-end gap-4">
             <Button
@@ -663,6 +733,105 @@ export default function OffersPage() {
               className="bg-red-500 hover:bg-red-600"
             >
               Löschen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isColorDialogOpen} onOpenChange={setIsColorDialogOpen}>
+        <DialogContent className="bg-gray-800 text-gray-100 border-gray-700">
+          <DialogHeader>
+            <DialogTitle>Einstellungen</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Passen Sie die Darstellung der Angebote an
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-4">
+              <h3 className="font-medium text-lg text-gray-100">Farbeinstellungen</h3>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">
+                  Hintergrundfarbe
+                </label>
+                <div className="flex gap-4 items-center">
+                  <input
+                    type="color"
+                    value={backgroundColor}
+                    onChange={(e) => setBackgroundColor(e.target.value)}
+                    className="w-20 h-10 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={backgroundColor}
+                    onChange={(e) => setBackgroundColor(e.target.value)}
+                    className="bg-gray-900 border-gray-700 text-gray-100 rounded-lg px-3 py-2 w-28"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={resetColor}
+                    className="bg-gray-900/50 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-300"
+                  >
+                    Standard
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg">
+              <div 
+                className="rounded-lg border border-gray-700 p-4"
+                style={{ backgroundColor }}
+              >
+                <div className="flex gap-4">
+                  <div className="w-24 h-24 bg-white rounded-lg flex items-center justify-center">
+                    <Tag className="h-6 w-6 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-semibold text-gray-100 mb-2">Beispielprodukt</h3>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-500 text-lg leading-none">•</span>
+                        <span className="text-sm text-gray-400">Produktmerkmal 1</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-medium text-lg text-gray-100">Anzeigedauer</h3>
+              <div className="flex items-center gap-2">
+                <select
+                  value={displayDuration}
+                  onChange={(e) => setDisplayDuration(Number(e.target.value))}
+                  className="bg-gray-900 border-gray-700 text-gray-100 rounded-lg px-3 py-2 w-full"
+                >
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120].map((seconds) => (
+                    <option key={seconds} value={seconds}>
+                      {seconds} Sekunden
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-gray-400">
+                Zeit bis zum Laden der nächsten Angebote in der öffentlichen Ansicht
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-4 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsColorDialogOpen(false)}
+              className="bg-gray-900/50 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-300"
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={handleSaveSettings}
+              className="bg-blue-500 hover:bg-blue-600"
+            >
+              Speichern
             </Button>
           </div>
         </DialogContent>

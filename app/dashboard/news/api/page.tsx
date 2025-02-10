@@ -12,8 +12,9 @@ import {
   Database 
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'react-hot-toast'
 
-type MediaStackNews = {
+interface MediaStackNews {
   title: string
   description: string
   url: string
@@ -21,6 +22,7 @@ type MediaStackNews = {
   source: string
   category: string
   published_at: string
+  copy?: boolean
 }
 
 type UsageInfo = {
@@ -304,22 +306,37 @@ export default function NewsApiPage() {
   const toggleNews = async (item: MediaStackNews) => {
     try {
       if (!item.copy) {
+        // Prüfe ob das Bild erreichbar ist
+        let validImage = item.image;
+        if (item.image) {
+          try {
+            const response = await fetch(item.image, { method: 'HEAD' });
+            if (!response.ok) {
+              validImage = null;
+            }
+          } catch (error) {
+            console.log('Bild nicht erreichbar:', item.image);
+            validImage = null;
+          }
+        }
+
         // Kopiere in news Tabelle
         const { error: insertError } = await supabase
           .from('news')
           .insert({
-            title: item.title,
-            description: item.description,
-            url: item.url,
-            image: item.image,
-            source: item.source,
-            category: item.category,
-            published_at: item.published_at
+            title: item.title || '',
+            description: item.description || '',
+            url: item.url || '',
+            image: validImage,
+            source: item.source || '',
+            category: item.category || 'general',
+            published_at: new Date(item.published_at).toISOString()
           })
 
         if (insertError) {
           console.error('Fehler beim Kopieren der Nachricht:', insertError)
-          return
+          toast.error('Fehler beim Speichern der Nachricht')
+          throw insertError
         }
 
         // Setze copy Flag in api_news auf true
@@ -330,8 +347,10 @@ export default function NewsApiPage() {
 
         if (updateError) {
           console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
-          return
+          throw updateError
         }
+
+        toast.success('Nachricht erfolgreich gespeichert')
       } else {
         // Lösche aus news Tabelle
         const { error: deleteError } = await supabase
@@ -341,7 +360,8 @@ export default function NewsApiPage() {
 
         if (deleteError) {
           console.error('Fehler beim Löschen der Nachricht:', deleteError)
-          return
+          toast.error('Fehler beim Löschen der Nachricht')
+          throw deleteError
         }
 
         // Setze copy Flag in api_news auf false
@@ -352,8 +372,10 @@ export default function NewsApiPage() {
 
         if (updateError) {
           console.error('Fehler beim Aktualisieren des copy Flags:', updateError)
-          return
+          throw updateError
         }
+
+        toast.success('Nachricht erfolgreich entfernt')
       }
 
       // Aktualisiere die UI
@@ -366,6 +388,7 @@ export default function NewsApiPage() {
       )
     } catch (error) {
       console.error('Fehler beim Verarbeiten der Nachricht:', error)
+      toast.error('Ein Fehler ist aufgetreten')
     }
   }
 

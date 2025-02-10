@@ -23,6 +23,10 @@ export default function PublicOffersPortrait() {
   const [isVisible, setIsVisible] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
+  const [settings, setSettings] = useState<{ background_color: string; display_duration: number }>({
+    background_color: '#1f2937',
+    display_duration: 30
+  })
   const supabase = createClientComponentClient()
 
   const DISPLAY_TIME = 30000 // 30 Sekunden Anzeigezeit
@@ -32,6 +36,7 @@ export default function PublicOffersPortrait() {
   useEffect(() => {
     loadBackground()
     loadProducts()
+    loadSettings()
     const interval = setInterval(loadBackground, 60000)
     const productsInterval = setInterval(loadProducts, 60000)
 
@@ -49,14 +54,14 @@ export default function PublicOffersPortrait() {
         setIsVisible(true)
       }, FADE_DURATION)
       
-    }, DISPLAY_TIME)
+    }, settings.display_duration * 1000) // Umrechnung in Millisekunden
 
     return () => {
       clearInterval(interval)
       clearInterval(productsInterval)
       clearInterval(rotationTimer)
     }
-  }, [products.length])
+  }, [products.length, settings.display_duration])
 
   async function loadBackground() {
     try {
@@ -91,6 +96,39 @@ export default function PublicOffersPortrait() {
       setProducts(data || [])
     } catch (error) {
       console.error('Fehler beim Laden der Produkte:', error)
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const { data, error } = await supabase
+        .from('offer_settings')
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('Fehler beim Laden der Einstellungen:', error.message)
+        // Verwende Standardwerte wenn keine Einstellungen gefunden wurden
+        setSettings({
+          background_color: '#1f2937',
+          display_duration: 30
+        })
+        return
+      }
+
+      if (data) {
+        setSettings({
+          background_color: data.background_color || '#1f2937',
+          display_duration: data.display_duration || 30
+        })
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Einstellungen:', error)
+      // Verwende Standardwerte im Fehlerfall
+      setSettings({
+        background_color: '#1f2937',
+        display_duration: 30
+      })
     }
   }
 
@@ -149,7 +187,10 @@ export default function PublicOffersPortrait() {
                   ease: "easeOut"
                 }}
               >
-                <div className="bg-gray-800/90 rounded-lg border border-gray-700 p-4 flex flex-col gap-4">
+                <div 
+                  className="rounded-lg border border-gray-700 p-4 flex flex-col gap-4 backdrop-blur-sm"
+                  style={{ backgroundColor: `${settings.background_color}e6` }}
+                >
                   <div className="flex gap-4 w-full">
                     <div className="relative h-[70%] aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center">
                       {product.image_url ? (

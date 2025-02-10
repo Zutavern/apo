@@ -20,9 +20,12 @@ export default function PublicOffersLandscape() {
   const [background, setBackground] = useState<string | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [currentSet, setCurrentSet] = useState(0)
+  const [settings, setSettings] = useState<{ background_color: string; display_duration: number }>({
+    background_color: '#1f2937',
+    display_duration: 30
+  })
   const supabase = createClientComponentClient()
 
-  const DISPLAY_TIME = 30000 // 30 Sekunden
   const PRODUCTS_PER_PAGE = 4
 
   useEffect(() => {
@@ -60,8 +63,42 @@ export default function PublicOffersLandscape() {
       }
     }
 
+    async function loadSettings() {
+      try {
+        const { data, error } = await supabase
+          .from('offer_settings')
+          .select('*')
+          .single()
+
+        if (error) {
+          console.error('Fehler beim Laden der Einstellungen:', error.message)
+          // Verwende Standardwerte wenn keine Einstellungen gefunden wurden
+          setSettings({
+            background_color: '#1f2937',
+            display_duration: 30
+          })
+          return
+        }
+
+        if (data) {
+          setSettings({
+            background_color: data.background_color || '#1f2937',
+            display_duration: data.display_duration || 30
+          })
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Einstellungen:', error)
+        // Verwende Standardwerte im Fehlerfall
+        setSettings({
+          background_color: '#1f2937',
+          display_duration: 30
+        })
+      }
+    }
+
     loadBackground()
     loadProducts()
+    loadSettings()
     const interval = setInterval(loadBackground, 60000)
     const productsInterval = setInterval(loadProducts, 60000)
     
@@ -72,14 +109,14 @@ export default function PublicOffersLandscape() {
         console.log(`Rotating to set ${current + 1} of ${totalSets}`) // Debug Info
         return current + 1 >= totalSets ? 0 : current + 1
       })
-    }, DISPLAY_TIME)
+    }, settings.display_duration * 1000)
 
     return () => {
       clearInterval(interval)
       clearInterval(productsInterval)
       clearInterval(animationTimer)
     }
-  }, [products.length])
+  }, [products.length, settings.display_duration])
 
   const getCurrentProducts = () => {
     const start = currentSet * PRODUCTS_PER_PAGE
@@ -110,12 +147,15 @@ export default function PublicOffersLandscape() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ 
                   duration: 0.5,
-                  delay: index * 0.2, // Verzögerung für kaskadierenden Effekt
+                  delay: index * 0.2,
                 }}
               >
                 <div 
-                  className="bg-gray-800/90 rounded-lg border border-gray-700 p-4 flex flex-col gap-4"
-                  style={{ height: '280px' }}
+                  className="rounded-lg border border-gray-700 p-4 flex flex-col gap-4 backdrop-blur-sm"
+                  style={{ 
+                    backgroundColor: `${settings.background_color}e6`, // e6 für 90% Opazität
+                    height: '280px'
+                  }}
                 >
                   <div className="flex gap-4 w-full h-full">
                     <div className="relative h-full aspect-square bg-white rounded-lg overflow-hidden flex items-center justify-center">
