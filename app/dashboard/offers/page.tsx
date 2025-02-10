@@ -57,9 +57,37 @@ export default function OffersPage() {
 
   const supabase = createClientComponentClient()
 
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('offer_settings')
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('Fehler beim Laden der Einstellungen:', error)
+        return
+      }
+
+      if (data) {
+        setBackgroundColor(data.background_color)
+        setDisplayDuration(data.display_duration)
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden der Einstellungen:', error)
+    }
+  }
+
   useEffect(() => {
     loadProducts()
   }, [])
+
+  // Lade die Einstellungen wenn der Dialog geöffnet wird
+  useEffect(() => {
+    if (isColorDialogOpen) {
+      loadSettings()
+    }
+  }, [isColorDialogOpen])
 
   useEffect(() => {
     if (products.length > 0) {
@@ -270,17 +298,17 @@ export default function OffersPage() {
         </div>
         <div className="flex items-center justify-end gap-2">
           <button
+            onClick={() => setIsGridView(!isGridView)}
+            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
+          >
+            {isGridView ? <Rows className="h-5 w-5" /> : <Columns className="h-5 w-5" />}
+          </button>
+          <button
             onClick={() => setIsColorDialogOpen(true)}
             className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors"
             title="Farbeinstellungen"
           >
             <Settings className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setIsGridView(!isGridView)}
-            className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors"
-          >
-            {isGridView ? <Rows className="h-5 w-5" /> : <Columns className="h-5 w-5" />}
           </button>
           <Link href="/dashboard/offers/backgrounds">
             <button className="inline-flex items-center justify-center w-10 h-10 bg-gray-800 text-gray-200 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors">
